@@ -21,12 +21,23 @@ apps:
     common-id: io.foxiq.FoxRes
 
 parts:
+  # Ubuntu 24.04's packaged Rust is older than the workspace MSRV, so install
+  # a current stable toolchain with rustup.
+  rust-deps:
+    plugin: nil
+    build-packages: [curl]
+    override-pull: |
+      curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+        | sh -s -- -y --profile minimal --default-toolchain stable
+
   foxres:
+    after: [rust-deps]
     plugin: rust
     source: .
-    build-snaps: [rustup]
-    rust-channel: stable
+    rust-channel: none
     rust-path: [crates/foxres-gtk]
+    build-environment:
+      - PATH: /root/.cargo/bin:${PATH}
     parse-info: [usr/share/metainfo/io.foxiq.FoxRes.metainfo.xml]
     override-build: |
       craftctl default
