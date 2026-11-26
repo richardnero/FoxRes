@@ -1,0 +1,36 @@
+name: foxres
+base: core24
+adopt-info: foxres
+grade: stable
+confinement: strict
+license: MIT
+title: FoxRes
+contact: richard@rlnero.com
+issues: https://github.com/richardnero/FoxRes/issues
+source-code: https://github.com/richardnero/FoxRes
+website: https://www.foxiq.io
+
+platforms:
+  amd64:
+  arm64:
+
+apps:
+  foxres:
+    command: bin/foxres
+    extensions: [gnome]
+    common-id: io.foxiq.FoxRes
+
+parts:
+  foxres:
+    plugin: rust
+    source: .
+    rust-path: [crates/foxres-gtk]
+    parse-info: [usr/share/metainfo/io.foxiq.FoxRes.metainfo.xml]
+    override-build: |
+      craftctl default
+      install -Dm644 data/io.foxiq.FoxRes.desktop \
+        "$CRAFT_PART_INSTALL/usr/share/applications/io.foxiq.FoxRes.desktop"
+      install -Dm644 data/io.foxiq.FoxRes.metainfo.xml \
+        "$CRAFT_PART_INSTALL/usr/share/metainfo/io.foxiq.FoxRes.metainfo.xml"
+      install -Dm644 data/icons/io.foxiq.FoxRes.svg \
+        "$CRAFT_PART_INSTALL/usr/share/icons/hicolor/scalable/apps/io.foxiq.FoxRes.svg"

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.foxiq.FoxRes</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>FoxRes</name>
+  <summary>Resistor color codes, SMD markings and standard values</summary>
+  <description>
+    <p>FoxRes is a fast, accurate resistor calculator for electronics work.</p>
+    <ul>
+      <li>Decode 3, 4, 5 and 6-band color codes, or type a value to get its bands</li>
+      <li>Read and generate SMD markings: 3-digit, 4-digit, R notation and EIA-96</li>
+      <li>Find the nearest E3 to E192 standard value, with the error shown</li>
+      <li>Find the best series or parallel pair of standard values for any target</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.foxiq.FoxRes.desktop</launchable>
+  <developer id="io.foxiq">
+    <name>FoxIQ</name>
+  </developer>
+  <url type="homepage">https://www.foxiq.io</url>
+  <url type="bugtracker">https://github.com/richardnero/FoxRes/issues</url>
+  <url type="vcs-browser">https://github.com/richardnero/FoxRes</url>
+  <provides>
+    <binary>foxres</binary>
+  </provides>
+  <categories>
+    <category>Utility</category>
+    <category>Electronics</category>
+  </categories>
+  <branding>
+    <color type="primary" scheme_preference="light">#f6a05a</color>
+    <color type="primary" scheme_preference="dark">#7a3a12</color>
+  </branding>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-11-26">
+      <description>
+        <p>First release: color bands, SMD codes, E-series and two-resistor combinations.</p>
+      </description>
+    </release>
+  </releases>
+</component>

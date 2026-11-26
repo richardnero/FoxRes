@@ -1,0 +1,22 @@
+[package]
+name = "foxres-gtk"
+description = "FoxRes resistor calculator for GNOME"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
+[[bin]]
+name = "foxres"
+path = "src/main.rs"
+
+[dependencies]
+foxres-core = { path = "../foxres-core" }
+# gnome_46 matches the runtime in the core24 snap (gnome-46-2404).
+relm4 = { version = "0.11", default-features = false, features = ["macros", "libadwaita", "gnome_46"] }
+
+[lints]
+workspace = true

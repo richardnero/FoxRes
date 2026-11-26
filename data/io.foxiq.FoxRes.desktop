@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=FoxRes
+Comment=Resistor color codes, SMD markings, E-series values and combinations
+Exec=foxres
+Icon=io.foxiq.FoxRes
+Terminal=false
+Type=Application
+Categories=Utility;Electronics;Engineering;
+Keywords=resistor;color;colour;code;band;smd;eia-96;e24;ohm;electronics;
+StartupNotify=true

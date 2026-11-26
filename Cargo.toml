@@ -1,0 +1,30 @@
+[workspace]
+resolver = "3"
+members = ["crates/foxres-core", "crates/foxres-gtk"]
+default-members = ["crates/foxres-core", "crates/foxres-gtk"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.93"
+license = "MIT"
+authors = ["FoxIQ <richard@rlnero.com>"]
+repository = "https://github.com/richardnero/FoxRes"
+homepage = "https://www.foxiq.io"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
