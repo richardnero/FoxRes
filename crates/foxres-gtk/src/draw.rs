@@ -11,13 +11,14 @@ fn rgb(cr: &Context, (r, g, b): (u8, u8, u8)) {
     );
 }
 
-fn rounded_rect(cr: &Context, x: f64, y: f64, w: f64, h: f64, r: f64) {
+fn rounded_rect(cr: &Context, left: f64, top: f64, width: f64, height: f64, radius: f64) {
     use std::f64::consts::{FRAC_PI_2, PI};
+    let (right, bottom) = (left + width, top + height);
     cr.new_sub_path();
-    cr.arc(x + w - r, y + r, r, -FRAC_PI_2, 0.0);
-    cr.arc(x + w - r, y + h - r, r, 0.0, FRAC_PI_2);
-    cr.arc(x + r, y + h - r, r, FRAC_PI_2, PI);
-    cr.arc(x + r, y + r, r, PI, 3.0 * FRAC_PI_2);
+    cr.arc(right - radius, top + radius, radius, -FRAC_PI_2, 0.0);
+    cr.arc(right - radius, bottom - radius, radius, 0.0, FRAC_PI_2);
+    cr.arc(left + radius, bottom - radius, radius, FRAC_PI_2, PI);
+    cr.arc(left + radius, top + radius, radius, PI, 3.0 * FRAC_PI_2);
     cr.close_path();
 }
 

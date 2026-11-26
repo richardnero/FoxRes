@@ -249,7 +249,7 @@ impl SimpleComponent for App {
         }
     }
 
-    fn init(_: (), root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
+    fn init((): (), root: Self::Root, sender: ComponentSender<Self>) -> ComponentParts<Self> {
         let series_names: Vec<&str> = ESeries::ALL.iter().map(|s| s.name()).collect();
         let initial = vec![Color::Yellow, Color::Violet, Color::Red, Color::Gold];
         let (band_value, band_detail) = text::bands(&initial);

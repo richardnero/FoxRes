@@ -1,5 +1,7 @@
 //! Turns core results into the strings the window shows.
 
+use std::fmt::Write;
+
 use foxres_core::{
     Color, ESeries,
     bands::{self, BandCount},
@@ -21,10 +23,10 @@ pub fn bands(colors: &[Color]) -> (String, String) {
                 format_ohms(r.max())
             );
             if let Some(tc) = r.tempco {
-                detail.push_str(&format!("  ·  {tc} ppm/K"));
+                let _ = write!(detail, "  ·  {tc} ppm/K");
             }
             if let Some(s) = smallest_series(r.ohms) {
-                detail.push_str(&format!("  ·  {} value", s.name()));
+                let _ = write!(detail, "  ·  {} value", s.name());
             }
             (format_ohms(r.ohms), detail)
         }
