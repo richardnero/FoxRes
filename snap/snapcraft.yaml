@@ -24,6 +24,8 @@ parts:
   foxres:
     plugin: rust
     source: .
+    build-snaps: [rustup]
+    rust-channel: stable
     rust-path: [crates/foxres-gtk]
     parse-info: [usr/share/metainfo/io.foxiq.FoxRes.metainfo.xml]
     override-build: |
