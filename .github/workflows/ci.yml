@@ -56,10 +56,37 @@ jobs:
           name: foxres-snap-${{ matrix.arch }}
           path: ${{ steps.build.outputs.snap }}
 
+  # Install each snap on a clean machine, as a user would, and run it. The
+  # command line loads the same binary and GNOME runtime as the window does.
+  snap-test:
+    needs: snap
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: foxres-snap-${{ matrix.arch }}
+      - name: Install the snap with strict confinement
+        run: sudo snap install --dangerous ./*.snap
+      - name: Run it
+        run: |
+          set -e
+          snap list foxres gnome-46-2404
+          foxres --version
+          test "$(foxres --json smd 472 | jq -r .ohms)" = "4700"
+          test "$(foxres --json rtd --temp 100 | jq '(.ohms - 138.5055) | fabs < 1e-9')" = "true"
+          foxres divider --vin 12 --vout 3.3
+
   # Push a tag such as v0.2.1 to publish both architectures to the Snap Store
   # (stable channel). Needs the SNAPCRAFT_STORE_CREDENTIALS repository secret.
   publish:
-    needs: snap
+    needs: [snap, snap-test]
     if: startsWith(github.ref, 'refs/tags/v')
     strategy:
       matrix:
