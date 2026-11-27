@@ -20,6 +20,8 @@ pub enum Error {
     OutOfRange(f64),
     /// Text could not be parsed as a resistance or code.
     Parse(String),
+    /// The inputs do not describe a valid problem; the message says why.
+    Invalid(String),
 }
 
 impl fmt::Display for Error {
@@ -43,6 +45,7 @@ impl fmt::Display for Error {
             ),
             Error::OutOfRange(v) => write!(f, "{v} Ω is outside the supported range"),
             Error::Parse(s) => write!(f, "could not understand \"{s}\""),
+            Error::Invalid(msg) => f.write_str(msg),
         }
     }
 }
