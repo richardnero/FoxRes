@@ -15,6 +15,7 @@ path = "src/main.rs"
 
 [dependencies]
 foxres-core = { path = "../foxres-core" }
+foxres-cli = { path = "../foxres-cli" }
 # gnome_46 matches the runtime in the core24 snap (gnome-46-2404).
 relm4 = { version = "0.11", default-features = false, features = ["macros", "libadwaita", "gnome_46"] }
 

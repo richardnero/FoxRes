@@ -169,6 +169,20 @@ pub fn error_percent(actual: f64, target: f64) -> f64 {
     (actual - target) / target * 100.0
 }
 
+impl std::str::FromStr for ESeries {
+    type Err = Error;
+
+    /// Parse `E24`, `e24` or `24`.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let t = s.trim();
+        let digits = t.strip_prefix(['E', 'e']).unwrap_or(t);
+        ESeries::ALL
+            .into_iter()
+            .find(|e| &e.name()[1..] == digits)
+            .ok_or_else(|| Error::Parse(t.to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -216,5 +230,13 @@ mod tests {
         let want = [1.0, 2.2, 4.7, 10.0, 22.0, 47.0, 100.0, 220.0, 470.0, 1000.0];
         assert_eq!(r.len(), want.len());
         assert!(r.iter().zip(want).all(|(a, b)| approx_eq(*a, b)));
+    }
+
+    #[test]
+    fn parses_names() {
+        assert_eq!("E24".parse::<ESeries>().unwrap(), ESeries::E24);
+        assert_eq!("e96".parse::<ESeries>().unwrap(), ESeries::E96);
+        assert_eq!("12".parse::<ESeries>().unwrap(), ESeries::E12);
+        assert!("E7".parse::<ESeries>().is_err());
     }
 }

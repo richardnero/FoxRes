@@ -1,23 +1,47 @@
 //! Main window.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, time::Duration};
 
 use foxres_core::{Color, ESeries, bands::BandCount};
 use relm4::{
     ComponentParts, ComponentSender, SimpleComponent,
     adw::{self, prelude::*},
-    gtk,
+    gtk::{self, glib},
 };
 
-use crate::{draw, text};
+use crate::{draw, screenshot, text};
+
+/// Text entries the screenshot mode fills in.
+struct Entries {
+    value: adw::EntryRow,
+    smd: adw::EntryRow,
+    marking: adw::EntryRow,
+    nearest: adw::EntryRow,
+    combo: adw::EntryRow,
+}
+
+impl Entries {
+    fn new() -> Self {
+        Self {
+            value: adw::EntryRow::new(),
+            smd: adw::EntryRow::new(),
+            marking: adw::EntryRow::new(),
+            nearest: adw::EntryRow::new(),
+            combo: adw::EntryRow::new(),
+        }
+    }
+}
 
 pub struct App {
     window: adw::ApplicationWindow,
+    stack: adw::ViewStack,
+    entries: Entries,
     drawing: gtk::DrawingArea,
     bands_group: adw::PreferencesGroup,
     band_rows: Vec<adw::ComboRow>,
     count: BandCount,
     colors: Rc<RefCell<Vec<Color>>>,
+    screenshots: Option<PathBuf>,
 
     band_value: String,
     band_detail: String,
@@ -50,6 +74,8 @@ pub enum Msg {
     ComboText(String),
     ComboSeries(u32),
     About,
+    Shot(usize),
+    Capture(usize),
 }
 
 const DEFAULT_SERIES: u32 = 3; // E24
@@ -64,13 +90,13 @@ impl SimpleComponent for App {
         #[root]
         adw::ApplicationWindow {
             set_title: Some("FoxRes"),
-            set_default_size: (560, 760),
+            set_default_size: (600, 800),
 
             adw::ToolbarView {
                 add_top_bar = &adw::HeaderBar {
                     #[wrap(Some)]
                     set_title_widget = &adw::ViewSwitcher {
-                        set_stack: Some(&stack),
+                        set_stack: Some(stack),
                         set_policy: adw::ViewSwitcherPolicy::Wide,
                     },
                     pack_end = &gtk::Button {
@@ -81,14 +107,15 @@ impl SimpleComponent for App {
                 },
 
                 #[wrap(Some)]
-                #[name = "stack"]
-                set_content = &adw::ViewStack {
+                #[local_ref]
+                set_content = stack -> adw::ViewStack {
                     add_titled_with_icon[Some("bands"), "Color Code", "view-continuous-symbolic"] = &adw::PreferencesPage {
                         add = &adw::PreferencesGroup {
                             #[local_ref]
                             add = drawing -> gtk::DrawingArea {
                                 set_content_height: 130,
                                 set_hexpand: true,
+                                set_accessible_role: gtk::AccessibleRole::Img,
                             },
                             add = &gtk::Label {
                                 add_css_class: "title-1",
@@ -113,7 +140,8 @@ impl SimpleComponent for App {
                                     sender.input(Msg::BandCount(row.selected()));
                                 },
                             },
-                            add = &adw::EntryRow {
+                            #[local_ref]
+                            add = value_entry -> adw::EntryRow {
                                 set_title: "Or type a value (4k7, 220, 1M)",
                                 connect_changed[sender] => move |e| {
                                     sender.input(Msg::ValueText(e.text().to_string()));
@@ -140,7 +168,8 @@ impl SimpleComponent for App {
                     add_titled_with_icon[Some("smd"), "SMD", "view-grid-symbolic"] = &adw::PreferencesPage {
                         add = &adw::PreferencesGroup {
                             set_title: "Decode a marking",
-                            add = &adw::EntryRow {
+                            #[local_ref]
+                            add = smd_entry -> adw::EntryRow {
                                 set_title: "Code",
                                 connect_changed[sender] => move |e| {
                                     sender.input(Msg::SmdCode(e.text().to_string()));
@@ -161,7 +190,8 @@ impl SimpleComponent for App {
                         },
                         add = &adw::PreferencesGroup {
                             set_title: "Find the marking for a value",
-                            add = &adw::EntryRow {
+                            #[local_ref]
+                            add = marking_entry -> adw::EntryRow {
                                 set_title: "Resistance",
                                 connect_changed[sender] => move |e| {
                                     sender.input(Msg::SmdValue(e.text().to_string()));
@@ -180,7 +210,8 @@ impl SimpleComponent for App {
                     add_titled_with_icon[Some("eseries"), "E-Series", "view-list-symbolic"] = &adw::PreferencesPage {
                         add = &adw::PreferencesGroup {
                             set_title: "Nearest standard value",
-                            add = &adw::EntryRow {
+                            #[local_ref]
+                            add = nearest_entry -> adw::EntryRow {
                                 set_title: "Target resistance",
                                 connect_changed[sender] => move |e| {
                                     sender.input(Msg::NearestText(e.text().to_string()));
@@ -214,7 +245,8 @@ impl SimpleComponent for App {
                         add = &adw::PreferencesGroup {
                             set_title: "Two-resistor combinations",
                             set_description: Some("Best pair of standard values for a value you don't stock"),
-                            add = &adw::EntryRow {
+                            #[local_ref]
+                            add = combo_entry -> adw::EntryRow {
                                 set_title: "Target resistance",
                                 connect_changed[sender] => move |e| {
                                     sender.input(Msg::ComboText(e.text().to_string()));
@@ -259,11 +291,14 @@ impl SimpleComponent for App {
 
         let mut model = App {
             window: root.clone(),
+            stack: adw::ViewStack::new(),
+            entries: Entries::new(),
             drawing: gtk::DrawingArea::new(),
             bands_group: adw::PreferencesGroup::new(),
             band_rows: Vec::new(),
             count: BandCount::Four,
             colors: Rc::new(RefCell::new(initial)),
+            screenshots: screenshot::dir(),
             band_value,
             band_detail,
             value_hint: String::new(),
@@ -285,11 +320,23 @@ impl SimpleComponent for App {
             draw::resistor(cr, w, h, &colors.borrow());
         });
 
+        let stack = &model.stack;
         let drawing = &model.drawing;
         let bands_group = &model.bands_group;
+        let value_entry = &model.entries.value;
+        let smd_entry = &model.entries.smd;
+        let marking_entry = &model.entries.marking;
+        let nearest_entry = &model.entries.nearest;
+        let combo_entry = &model.entries.combo;
         let widgets = view_output!();
 
         model.rebuild_band_rows(&sender);
+        if model.screenshots.is_some() {
+            let sender = sender.clone();
+            glib::timeout_add_local_once(Duration::from_millis(1200), move || {
+                sender.input(Msg::Shot(0));
+            });
+        }
         ComponentParts { model, widgets }
     }
 
@@ -350,11 +397,46 @@ impl SimpleComponent for App {
                 self.refresh_pairs();
             }
             Msg::About => self.show_about(),
+            Msg::Shot(i) => self.prepare_shot(i, &sender),
+            Msg::Capture(i) => {
+                if let (Some(dir), Some(shot)) = (&self.screenshots, screenshot::SHOTS.get(i)) {
+                    let path = dir.join(shot.file);
+                    match screenshot::save(&self.window, &path) {
+                        Ok(()) => eprintln!("saved {}", path.display()),
+                        Err(e) => eprintln!("could not save {}: {e}", path.display()),
+                    }
+                }
+                sender.input(Msg::Shot(i + 1));
+            }
         }
     }
 }
 
 impl App {
+    fn prepare_shot(&self, i: usize, sender: &ComponentSender<Self>) {
+        if i == 0 {
+            self.entries.value.set_text("4k7");
+            self.entries.smd.set_text("01C");
+            self.entries.marking.set_text("4.99k");
+            self.entries.nearest.set_text("5k");
+            self.entries.combo.set_text("5.7k");
+        }
+        let Some(shot) = screenshot::SHOTS.get(i) else {
+            self.window.close();
+            return;
+        };
+        adw::StyleManager::default().set_color_scheme(if shot.dark {
+            adw::ColorScheme::ForceDark
+        } else {
+            adw::ColorScheme::ForceLight
+        });
+        self.stack.set_visible_child_name(shot.page);
+        let sender = sender.clone();
+        glib::timeout_add_local_once(Duration::from_millis(700), move || {
+            sender.input(Msg::Capture(i));
+        });
+    }
+
     fn tolerance_and_tempco(&self) -> (Color, Color) {
         use foxres_core::bands::Role;
         let colors = self.colors.borrow();
@@ -438,7 +520,14 @@ impl App {
     }
 
     fn refresh_bands(&mut self) {
-        (self.band_value, self.band_detail) = text::bands(&self.colors.borrow());
+        let colors = self.colors.borrow();
+        (self.band_value, self.band_detail) = text::bands(&colors);
+        let names: Vec<&str> = colors.iter().map(|c| c.name()).collect();
+        self.drawing
+            .update_property(&[gtk::accessible::Property::Label(&format!(
+                "Resistor with bands {}",
+                names.join(", ")
+            ))]);
         self.drawing.queue_draw();
     }
 

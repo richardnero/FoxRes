@@ -1,7 +1,7 @@
 [workspace]
 resolver = "3"
-members = ["crates/foxres-core", "crates/foxres-gtk"]
-default-members = ["crates/foxres-core", "crates/foxres-gtk"]
+members = ["crates/foxres-core", "crates/foxres-cli", "crates/foxres-gtk"]
+default-members = ["crates/foxres-core", "crates/foxres-cli", "crates/foxres-gtk"]
 
 [workspace.package]
 version = "0.1.0"

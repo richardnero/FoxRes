@@ -163,6 +163,25 @@ impl Color {
     }
 }
 
+impl std::str::FromStr for Color {
+    type Err = crate::Error;
+
+    /// Parse a color name, ignoring case. Accepts `gray` and `purple` as aliases.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let name = s.trim().to_ascii_lowercase();
+        let alias = match name.as_str() {
+            "gray" => "grey",
+            "purple" => "violet",
+            "none" | "blank" | "-" => "none",
+            other => other,
+        };
+        Color::ALL
+            .into_iter()
+            .find(|c| c.name().eq_ignore_ascii_case(alias))
+            .ok_or_else(|| crate::Error::Parse(s.trim().to_string()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -191,5 +210,14 @@ mod tests {
         assert_eq!(Color::Gold.tolerance(), Some(5.0));
         assert_eq!(Color::Brown.tolerance(), Some(1.0));
         assert_eq!(Color::Black.tolerance(), None);
+    }
+
+    #[test]
+    fn parses_names() {
+        assert_eq!("YELLOW".parse::<Color>().unwrap(), Color::Yellow);
+        assert_eq!("gray".parse::<Color>().unwrap(), Color::Grey);
+        assert_eq!("purple".parse::<Color>().unwrap(), Color::Violet);
+        assert_eq!(" none ".parse::<Color>().unwrap(), Color::None);
+        assert!("teal".parse::<Color>().is_err());
     }
 }

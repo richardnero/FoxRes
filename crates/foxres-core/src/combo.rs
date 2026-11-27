@@ -23,7 +23,7 @@ impl Connection {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Pair {
     pub connection: Connection,
-    /// The larger of the two (series) or the one closer to the target (parallel).
+    /// The larger of the two.
     pub a: f64,
     pub b: f64,
     /// Combined resistance.
@@ -56,6 +56,7 @@ pub fn best_pair(target: f64, series: ESeries, connection: Connection) -> Result
             };
             let b = series.nearest(needed).ok()?;
             let total = connection.combine(a, b);
+            let (a, b) = if b > a { (b, a) } else { (a, b) };
             Some(Pair {
                 connection,
                 a,
