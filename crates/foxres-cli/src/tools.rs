@@ -864,6 +864,7 @@ pub fn bridge_cmd(a: &BridgeArgs) -> Result<Output> {
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum MaterialArg {
     Copper,
+    #[value(alias = "aluminum")]
     Aluminium,
 }
 
@@ -879,7 +880,7 @@ pub struct WireArgs {
     /// Diameter in mm.
     #[arg(long)]
     diameter: Option<f64>,
-    /// Length in metres (one way).
+    /// Length in meters (one way).
     #[arg(short, long)]
     length: f64,
     /// Count both conductors of a two-wire run (out and back).

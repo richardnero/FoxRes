@@ -17,7 +17,7 @@ impl Material {
     pub fn name(self) -> &'static str {
         match self {
             Material::Copper => "Copper",
-            Material::Aluminium => "Aluminium",
+            Material::Aluminium => "Aluminum",
         }
     }
 

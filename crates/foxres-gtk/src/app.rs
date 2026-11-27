@@ -6,10 +6,33 @@ use foxres_core::{Color, ESeries, bands::BandCount};
 use relm4::{
     ComponentParts, ComponentSender, SimpleComponent,
     adw::{self, prelude::*},
-    gtk::{self, glib},
+    gtk::{self, glib, glib::prelude::ToValue},
 };
 
-use crate::{draw, screenshot, text};
+use crate::{draw, screenshot, text, tools};
+
+/// Sidebar entries: page id, title and section, in display order.
+pub const NAV: &[(&str, &str, &str)] = &[
+    ("bands", "Color Code", "Identify"),
+    ("smd", "SMD Codes", "Identify"),
+    ("eseries", "Standard Values", "Choose"),
+    ("combine", "Combinations", "Choose"),
+    ("divider", "Voltage Divider", "Choose"),
+    ("led", "LED Resistor", "Choose"),
+    ("ohm", "Ohm's Law", "Analyze"),
+    ("power", "Power & Package", "Analyze"),
+    ("network", "Series & Parallel", "Analyze"),
+    ("tolerance", "Tolerance", "Analyze"),
+    ("thermal", "Temperature & Noise", "Analyze"),
+    ("rtd", "RTD (Pt100/Pt1000)", "Instrumentation"),
+    ("ntc", "NTC Thermistor", "Instrumentation"),
+    ("loop", "4–20 mA Loop", "Instrumentation"),
+    ("bridge", "Wheatstone Bridge", "Instrumentation"),
+    ("wire", "Wire", "Wiring"),
+    ("trace", "PCB Trace", "Wiring"),
+];
+
+const FOXIQ_URL: &str = "https://www.foxiq.io";
 
 /// Text entries the screenshot mode fills in.
 struct Entries {
@@ -34,6 +57,10 @@ impl Entries {
 
 pub struct App {
     window: adw::ApplicationWindow,
+    split: adw::NavigationSplitView,
+    sidebar: gtk::ListBox,
+    page_title: String,
+    triple: String,
     stack: adw::ViewStack,
     entries: Entries,
     drawing: gtk::DrawingArea,
@@ -75,6 +102,8 @@ pub enum Msg {
     ComboText(String),
     ComboSeries(u32),
     About,
+    Navigate(i32),
+    OpenWebsite,
     Shot(usize),
     Capture(usize),
 }
@@ -91,15 +120,52 @@ impl SimpleComponent for App {
         #[root]
         adw::ApplicationWindow {
             set_title: Some("FoxRes"),
-            set_default_size: (660, 720),
+            set_default_size: (980, 760),
 
-            adw::ToolbarView {
-                add_top_bar = &adw::HeaderBar {
+            #[local_ref]
+            split -> adw::NavigationSplitView {
+                set_min_sidebar_width: 220.0,
+                set_max_sidebar_width: 280.0,
+
+                #[wrap(Some)]
+                set_sidebar = &adw::NavigationPage {
+                    set_title: "FoxRes",
                     #[wrap(Some)]
-                    set_title_widget = &adw::ViewSwitcher {
-                        set_stack: Some(stack),
-                        set_policy: adw::ViewSwitcherPolicy::Wide,
+                    set_child = &adw::ToolbarView {
+                        add_top_bar = &adw::HeaderBar {},
+                        #[wrap(Some)]
+                        set_content = &gtk::ScrolledWindow {
+                            set_hscrollbar_policy: gtk::PolicyType::Never,
+                            #[local_ref]
+                            sidebar -> gtk::ListBox {
+                                add_css_class: "navigation-sidebar",
+                                connect_row_selected[sender] => move |_, row| {
+                                    if let Some(row) = row {
+                                        sender.input(Msg::Navigate(row.index()));
+                                    }
+                                },
+                            },
+                        },
+                        add_bottom_bar = &gtk::Button {
+                            add_css_class: "flat",
+                            set_margin_all: 6,
+                            set_tooltip_text: Some("Open foxiq.io"),
+                            #[wrap(Some)]
+                            set_child = &gtk::Label {
+                                set_markup: "<small>Made by <b>FoxIQ</b> · engineering services</small>",
+                            },
+                            connect_clicked => Msg::OpenWebsite,
+                        },
                     },
+                },
+
+                #[wrap(Some)]
+                set_content = &adw::NavigationPage {
+                    #[watch]
+                    set_title: &model.page_title,
+                    #[wrap(Some)]
+                    set_child = &adw::ToolbarView {
+                add_top_bar = &adw::HeaderBar {
                     pack_end = &gtk::Button {
                         set_icon_name: "help-about-symbolic",
                         set_tooltip_text: Some("About FoxRes"),
@@ -322,8 +388,17 @@ impl SimpleComponent for App {
                                 #[watch]
                                 set_subtitle: &model.parallel_pair,
                             },
+                            add = &adw::ActionRow {
+                                set_title: "Three resistors",
+                                add_css_class: "property",
+                                set_subtitle_selectable: true,
+                                #[watch]
+                                set_subtitle: &model.triple,
+                            },
                         },
                     },
+                },
+            },
                 },
             },
         }
@@ -339,6 +414,10 @@ impl SimpleComponent for App {
 
         let mut model = App {
             window: root.clone(),
+            split: adw::NavigationSplitView::new(),
+            sidebar: gtk::ListBox::new(),
+            page_title: NAV[0].1.to_string(),
+            triple: String::new(),
             stack: adw::ViewStack::new(),
             entries: Entries::new(),
             drawing: gtk::DrawingArea::new(),
@@ -370,6 +449,8 @@ impl SimpleComponent for App {
         });
 
         let stack = &model.stack;
+        let split = &model.split;
+        let sidebar = &model.sidebar;
         let drawing = &model.drawing;
         let bands_group = &model.bands_group;
         let value_entry = &model.entries.value;
@@ -380,6 +461,43 @@ impl SimpleComponent for App {
         let widgets = view_output!();
 
         model.rebuild_band_rows(&sender);
+        for tool in tools::all() {
+            let (id, title) = (tool.id, tool.title);
+            model.stack.add_titled(&tools::page(tool), Some(id), title);
+        }
+        for (id, title, _) in NAV {
+            let label = gtk::Label::builder().label(*title).xalign(0.0).build();
+            model
+                .sidebar
+                .append(&gtk::ListBoxRow::builder().child(&label).name(*id).build());
+        }
+        model.sidebar.set_header_func(|row, before| {
+            let section = NAV[row.index() as usize].2;
+            if before.map(|b| NAV[b.index() as usize].2) == Some(section) {
+                row.set_header(None::<&gtk::Widget>);
+            } else {
+                let header = gtk::Label::builder()
+                    .label(section)
+                    .xalign(0.0)
+                    .css_classes(["heading", "dim-label"])
+                    .margin_top(if before.is_some() { 14 } else { 6 })
+                    .margin_bottom(4)
+                    .margin_start(10)
+                    .build();
+                row.set_header(Some(&header));
+            }
+        });
+        let narrow = adw::Breakpoint::new(adw::BreakpointCondition::new_length(
+            adw::BreakpointConditionLengthType::MaxWidth,
+            720.0,
+            adw::LengthUnit::Sp,
+        ));
+        narrow.add_setter(&model.split, "collapsed", Some(&true.to_value()));
+        root.add_breakpoint(narrow);
+        model
+            .sidebar
+            .select_row(model.sidebar.row_at_index(0).as_ref());
+
         if model.screenshots.is_some() {
             let sender = sender.clone();
             glib::timeout_add_local_once(Duration::from_millis(1200), move || {
@@ -458,6 +576,20 @@ impl SimpleComponent for App {
                 self.refresh_pairs();
             }
             Msg::About => self.show_about(),
+            Msg::Navigate(i) => {
+                if let Some((id, title, _)) = usize::try_from(i).ok().and_then(|i| NAV.get(i)) {
+                    self.stack.set_visible_child_name(id);
+                    self.page_title = (*title).to_string();
+                    self.split.set_show_content(true);
+                }
+            }
+            Msg::OpenWebsite => {
+                gtk::UriLauncher::new(FOXIQ_URL).launch(
+                    Some(&self.window),
+                    gtk::gio::Cancellable::NONE,
+                    |_| {},
+                );
+            }
             Msg::Shot(i) => self.prepare_shot(i, &sender),
             Msg::Capture(i) => {
                 if let (Some(dir), Some(shot)) = (&self.screenshots, screenshot::SHOTS.get(i)) {
@@ -492,7 +624,10 @@ impl App {
         } else {
             adw::ColorScheme::ForceLight
         });
-        self.stack.set_visible_child_name(shot.page);
+        if let Some(i) = NAV.iter().position(|(id, _, _)| *id == shot.page) {
+            self.sidebar
+                .select_row(self.sidebar.row_at_index(i as i32).as_ref());
+        }
         let sender = sender.clone();
         gtk::prelude::GtkWindowExt::set_focus(&self.window, gtk::Widget::NONE);
         glib::timeout_add_local_once(Duration::from_millis(700), move || {
@@ -615,7 +750,8 @@ impl App {
     }
 
     fn refresh_pairs(&mut self) {
-        (self.series_pair, self.parallel_pair) = text::pairs(&self.combo_text, self.combo_series);
+        (self.series_pair, self.parallel_pair, self.triple) =
+            text::pairs(&self.combo_text, self.combo_series);
     }
 
     fn show_about(&self) {
@@ -628,8 +764,9 @@ impl App {
             .issue_url("https://github.com/richardnero/FoxRes/issues")
             .license_type(gtk::License::MitX11)
             .copyright("© 2026 FoxIQ")
-            .comments("Resistor color codes, SMD markings, E-series values and combinations.")
+            .comments("The resistor toolkit: identify, choose, design and verify — from color codes to 4–20 mA loops.")
             .build();
+        about.add_link("FoxIQ engineering services", FOXIQ_URL);
         about.present(Some(&self.window));
     }
 }

@@ -2,6 +2,7 @@ mod app;
 mod draw;
 mod screenshot;
 mod text;
+mod tools;
 
 use std::process::ExitCode;
 

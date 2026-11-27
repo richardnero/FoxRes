@@ -19,7 +19,7 @@ pub struct Shot {
     pub dark: bool,
 }
 
-pub const SHOTS: [Shot; 5] = [
+pub const SHOTS: [Shot; 9] = [
     Shot {
         page: "bands",
         file: "color-code.png",
@@ -38,6 +38,26 @@ pub const SHOTS: [Shot; 5] = [
     Shot {
         page: "combine",
         file: "combine.png",
+        dark: false,
+    },
+    Shot {
+        page: "divider",
+        file: "divider.png",
+        dark: false,
+    },
+    Shot {
+        page: "power",
+        file: "power.png",
+        dark: false,
+    },
+    Shot {
+        page: "rtd",
+        file: "rtd.png",
+        dark: false,
+    },
+    Shot {
+        page: "loop",
+        file: "current-loop.png",
         dark: false,
     },
     Shot {

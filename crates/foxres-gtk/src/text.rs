@@ -126,14 +126,24 @@ pub fn nearest(text: &str, series: ESeries) -> Nearest {
     }
 }
 
-/// Best series and parallel pairs: (series line, parallel line).
-pub fn pairs(text: &str, series: ESeries) -> (String, String) {
+/// Best series pair, parallel pair and three-resistor combination.
+pub fn pairs(text: &str, series: ESeries) -> (String, String, String) {
     if text.trim().is_empty() {
-        return (String::new(), String::new());
+        return (String::new(), String::new(), String::new());
     }
     let target = match parse_ohms(text) {
         Ok(t) => t,
-        Err(e) => return (e.to_string(), String::new()),
+        Err(e) => return (e.to_string(), String::new(), String::new()),
+    };
+    let triple = match foxres_core::network::best_triple(target, series) {
+        Ok(t) => format!(
+            "{} = {}  ({})",
+            t.topology
+                .describe(&format_ohms(t.a), &format_ohms(t.b), &format_ohms(t.c)),
+            format_ohms(t.total),
+            pct(t.error)
+        ),
+        Err(e) => e.to_string(),
     };
     let line = |c: Connection, sym: &str| match combo::best_pair(target, series, c) {
         Ok(p) => format!(
@@ -148,5 +158,6 @@ pub fn pairs(text: &str, series: ESeries) -> (String, String) {
     (
         line(Connection::Series, "+"),
         line(Connection::Parallel, "∥"),
+        triple,
     )
 }
