@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "foxres-cli"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "clap",
  "foxres-core",
@@ -203,11 +203,11 @@ dependencies = [
 
 [[package]]
 name = "foxres-core"
-version = "0.2.0"
+version = "0.2.1"
 
 [[package]]
 name = "foxres-gtk"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "foxres-cli",
  "foxres-core",

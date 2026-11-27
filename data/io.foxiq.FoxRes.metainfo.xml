@@ -96,6 +96,10 @@
       <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/current-loop.png</image>
     </screenshot>
     <screenshot>
+      <caption>Adaptive layout on narrow screens</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/narrow.png</image>
+    </screenshot>
+    <screenshot>
       <caption>Dark mode</caption>
       <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/color-code-dark.png</image>
     </screenshot>
@@ -110,6 +114,12 @@
   </branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.1" date="2026-11-27">
+      <description>
+        <p>Native ARM64 builds for Raspberry Pi and ARM laptops, an adaptive layout for narrow screens,
+        and the new shaded app icon inside the app.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-11-27">
       <description>
         <p>FoxRes becomes a complete resistor toolkit, with 13 new tools: voltage dividers, LED
