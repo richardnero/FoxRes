@@ -73,9 +73,9 @@
 
   <!-- Title -->
   <text x="432" y="292" font-family="Ubuntu, Cantarell, 'Noto Sans', sans-serif" font-size="112" font-weight="700" fill="#fff4ea">FoxRes</text>
-  <text x="436" y="356" font-family="Ubuntu, Cantarell, 'Noto Sans', sans-serif" font-size="36" fill="#f3d2b8">Resistor color codes, SMD markings</text>
-  <text x="436" y="402" font-family="Ubuntu, Cantarell, 'Noto Sans', sans-serif" font-size="36" fill="#f3d2b8">and E-series values</text>
-  <text x="436" y="458" font-family="Ubuntu, Cantarell, 'Noto Sans', sans-serif" font-size="28" fill="#d9a988">Exact by design  ·  App and command line  ·  by FoxIQ</text>
+  <text x="436" y="356" font-family="Ubuntu, Cantarell, 'Noto Sans', sans-serif" font-size="36" fill="#f3d2b8">The resistor toolkit,</text>
+  <text x="436" y="402" font-family="Ubuntu, Cantarell, 'Noto Sans', sans-serif" font-size="36" fill="#f3d2b8">from color codes to 4–20 mA loops</text>
+  <text x="436" y="458" font-family="Ubuntu, Cantarell, 'Noto Sans', sans-serif" font-size="28" fill="#d9a988">Exact by design  ·  17 tools  ·  GUI and CLI  ·  by FoxIQ</text>
 
   <!-- Large resistor -->
   <rect x="1250" y="309" width="600" height="22" rx="11" fill="url(#wire)"/>
