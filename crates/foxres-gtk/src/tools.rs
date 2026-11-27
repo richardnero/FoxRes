@@ -35,6 +35,9 @@ pub enum Input {
     },
 }
 
+/// Result rows currently shown on a page.
+type ResultRows = Rc<RefCell<Vec<adw::ActionRow>>>;
+
 /// A tool page.
 pub struct Tool {
     pub id: &'static str,
@@ -94,6 +97,8 @@ fn ohms_list(text: &str) -> Result<Vec<f64>, String> {
         .collect()
 }
 
+/// Every tool, in sidebar order. Long because it is a table of definitions.
+#[allow(clippy::too_many_lines)]
 pub fn all() -> Vec<Tool> {
     vec![
         Tool {
@@ -1005,7 +1010,7 @@ pub fn page(tool: Tool) -> adw::PreferencesPage {
         };
     }
     let values = Rc::new(RefCell::new(Values(initial)));
-    let rows: Rc<RefCell<Vec<adw::ActionRow>>> = Rc::default();
+    let rows: ResultRows = Rc::default();
     let compute = tool.compute;
 
     let refresh = {
