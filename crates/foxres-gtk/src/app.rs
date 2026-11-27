@@ -592,32 +592,35 @@ impl SimpleComponent for App {
                 );
             }
             Msg::Shot(i) => self.prepare_shot(i, &sender),
-            Msg::Capture(i, attempt) => {
-                if let (Some(dir), Some(shot)) = (&self.screenshots, screenshot::SHOTS.get(i)) {
-                    let path = dir.join(shot.file);
-                    gtk::prelude::GtkWindowExt::set_focus(&self.window, gtk::Widget::NONE);
-                    match screenshot::save(&self.window, &path) {
-                        Ok(()) => eprintln!("saved {}", path.display()),
-                        // No frame yet (window covered or not redrawn): ask for one and retry.
-                        Err(_) if attempt < 20 => {
-                            self.window.present();
-                            self.window.queue_draw();
-                            let sender = sender.clone();
-                            glib::timeout_add_local_once(Duration::from_millis(250), move || {
-                                sender.input(Msg::Capture(i, attempt + 1));
-                            });
-                            return;
-                        }
-                        Err(e) => eprintln!("could not save {}: {e}", path.display()),
-                    }
-                }
-                sender.input(Msg::Shot(i + 1));
-            }
+            Msg::Capture(i, attempt) => self.capture(i, attempt, &sender),
         }
     }
 }
 
 impl App {
+    /// Save screenshot `i`, retrying while the window has no frame yet.
+    fn capture(&self, i: usize, attempt: u32, sender: &ComponentSender<Self>) {
+        if let (Some(dir), Some(shot)) = (&self.screenshots, screenshot::SHOTS.get(i)) {
+            let path = dir.join(shot.file);
+            gtk::prelude::GtkWindowExt::set_focus(&self.window, gtk::Widget::NONE);
+            match screenshot::save(&self.window, &path) {
+                Ok(()) => eprintln!("saved {}", path.display()),
+                // No frame yet (window covered or not redrawn): ask for one and retry.
+                Err(_) if attempt < 20 => {
+                    self.window.present();
+                    self.window.queue_draw();
+                    let sender = sender.clone();
+                    glib::timeout_add_local_once(Duration::from_millis(250), move || {
+                        sender.input(Msg::Capture(i, attempt + 1));
+                    });
+                    return;
+                }
+                Err(e) => eprintln!("could not save {}: {e}", path.display()),
+            }
+        }
+        sender.input(Msg::Shot(i + 1));
+    }
+
     fn prepare_shot(&self, i: usize, sender: &ComponentSender<Self>) {
         if i == 0 {
             self.entries.value.set_text("4k7");
