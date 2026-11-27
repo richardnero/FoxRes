@@ -49,12 +49,12 @@ pub struct App {
 
     smd_value: String,
     smd_notation: String,
-    smd_codes: String,
+    smd_codes: [String; 3],
+    smd_codes_error: String,
 
     series: ESeries,
     series_text: String,
-    nearest_value: String,
-    nearest_detail: String,
+    nearest: text::Nearest,
 
     combo_series: ESeries,
     combo_text: String,
@@ -90,7 +90,7 @@ impl SimpleComponent for App {
         #[root]
         adw::ApplicationWindow {
             set_title: Some("FoxRes"),
-            set_default_size: (600, 800),
+            set_default_size: (660, 720),
 
             adw::ToolbarView {
                 add_top_bar = &adw::HeaderBar {
@@ -109,7 +109,7 @@ impl SimpleComponent for App {
                 #[wrap(Some)]
                 #[local_ref]
                 set_content = stack -> adw::ViewStack {
-                    add_titled_with_icon[Some("bands"), "Color Code", "view-continuous-symbolic"] = &adw::PreferencesPage {
+                    add_titled_with_icon[Some("bands"), "Bands", "view-continuous-symbolic"] = &adw::PreferencesPage {
                         add = &adw::PreferencesGroup {
                             #[local_ref]
                             add = drawing -> gtk::DrawingArea {
@@ -119,7 +119,6 @@ impl SimpleComponent for App {
                             },
                             add = &gtk::Label {
                                 add_css_class: "title-1",
-                                set_selectable: true,
                                 #[watch]
                                 set_label: &model.band_value,
                             },
@@ -178,7 +177,6 @@ impl SimpleComponent for App {
                             add = &gtk::Label {
                                 add_css_class: "title-1",
                                 set_margin_top: 12,
-                                set_selectable: true,
                                 #[watch]
                                 set_label: &model.smd_value,
                             },
@@ -198,11 +196,38 @@ impl SimpleComponent for App {
                                 },
                             },
                             add = &gtk::Label {
-                                set_margin_top: 12,
-                                set_selectable: true,
-                                set_wrap: true,
+                                add_css_class: "caption",
+                                add_css_class: "error",
+                                set_margin_top: 6,
                                 #[watch]
-                                set_label: &model.smd_codes,
+                                set_visible: !model.smd_codes_error.is_empty(),
+                                #[watch]
+                                set_label: &model.smd_codes_error,
+                            },
+                        },
+                        add = &adw::PreferencesGroup {
+                            #[watch]
+                            set_visible: !model.smd_codes[0].is_empty(),
+                            add = &adw::ActionRow {
+                                set_title: "3-digit (±5 %)",
+                                add_css_class: "property",
+                                set_subtitle_selectable: true,
+                                #[watch]
+                                set_subtitle: &model.smd_codes[0],
+                            },
+                            add = &adw::ActionRow {
+                                set_title: "4-digit (±1 %)",
+                                add_css_class: "property",
+                                set_subtitle_selectable: true,
+                                #[watch]
+                                set_subtitle: &model.smd_codes[1],
+                            },
+                            add = &adw::ActionRow {
+                                set_title: "EIA-96 (±1 %)",
+                                add_css_class: "property",
+                                set_subtitle_selectable: true,
+                                #[watch]
+                                set_subtitle: &model.smd_codes[2],
                             },
                         },
                     },
@@ -228,15 +253,35 @@ impl SimpleComponent for App {
                             add = &gtk::Label {
                                 add_css_class: "title-1",
                                 set_margin_top: 12,
-                                set_selectable: true,
                                 #[watch]
-                                set_label: &model.nearest_value,
+                                set_visible: !model.nearest.value.is_empty(),
+                                #[watch]
+                                set_label: &model.nearest.value,
                             },
                             add = &gtk::Label {
                                 add_css_class: "dim-label",
+                                set_margin_top: 6,
                                 set_wrap: true,
                                 #[watch]
-                                set_label: &model.nearest_detail,
+                                set_label: &model.nearest.detail,
+                            },
+                        },
+                        add = &adw::PreferencesGroup {
+                            #[watch]
+                            set_visible: !model.nearest.below.is_empty(),
+                            add = &adw::ActionRow {
+                                set_title: "Next value below",
+                                add_css_class: "property",
+                                set_subtitle_selectable: true,
+                                #[watch]
+                                set_subtitle: &model.nearest.below,
+                            },
+                            add = &adw::ActionRow {
+                                set_title: "Next value above",
+                                add_css_class: "property",
+                                set_subtitle_selectable: true,
+                                #[watch]
+                                set_subtitle: &model.nearest.above,
                             },
                         },
                     },
@@ -265,12 +310,14 @@ impl SimpleComponent for App {
                             add = &adw::ActionRow {
                                 set_title: "Series",
                                 add_css_class: "property",
+                                set_subtitle_selectable: true,
                                 #[watch]
                                 set_subtitle: &model.series_pair,
                             },
                             add = &adw::ActionRow {
                                 set_title: "Parallel",
                                 add_css_class: "property",
+                                set_subtitle_selectable: true,
                                 #[watch]
                                 set_subtitle: &model.parallel_pair,
                             },
@@ -286,7 +333,7 @@ impl SimpleComponent for App {
         let initial = vec![Color::Yellow, Color::Violet, Color::Red, Color::Gold];
         let (band_value, band_detail) = text::bands(&initial);
         let series = ESeries::ALL[DEFAULT_SERIES as usize];
-        let (_, nearest_detail) = text::nearest("", series);
+        let nearest = text::nearest("", series);
         let (_, smd_notation) = text::smd_code("");
 
         let mut model = App {
@@ -304,11 +351,11 @@ impl SimpleComponent for App {
             value_hint: String::new(),
             smd_value: String::new(),
             smd_notation,
-            smd_codes: String::new(),
+            smd_codes: Default::default(),
+            smd_codes_error: String::new(),
             series,
             series_text: String::new(),
-            nearest_value: String::new(),
-            nearest_detail,
+            nearest,
             combo_series: series,
             combo_text: String::new(),
             series_pair: String::new(),
@@ -376,7 +423,16 @@ impl SimpleComponent for App {
                 }
             }
             Msg::SmdCode(t) => (self.smd_value, self.smd_notation) = text::smd_code(&t),
-            Msg::SmdValue(t) => self.smd_codes = text::smd_for_value(&t),
+            Msg::SmdValue(t) => match text::smd_for_value(&t) {
+                Ok(codes) => {
+                    self.smd_codes = codes;
+                    self.smd_codes_error.clear();
+                }
+                Err(e) => {
+                    self.smd_codes = Default::default();
+                    self.smd_codes_error = e;
+                }
+            },
             Msg::NearestText(t) => {
                 self.series_text = t;
                 self.refresh_nearest();
@@ -401,6 +457,7 @@ impl SimpleComponent for App {
             Msg::Capture(i) => {
                 if let (Some(dir), Some(shot)) = (&self.screenshots, screenshot::SHOTS.get(i)) {
                     let path = dir.join(shot.file);
+                    self.window.set_focus(gtk::Widget::NONE);
                     match screenshot::save(&self.window, &path) {
                         Ok(()) => eprintln!("saved {}", path.display()),
                         Err(e) => eprintln!("could not save {}: {e}", path.display()),
@@ -432,6 +489,7 @@ impl App {
         });
         self.stack.set_visible_child_name(shot.page);
         let sender = sender.clone();
+        self.window.set_focus(gtk::Widget::NONE);
         glib::timeout_add_local_once(Duration::from_millis(700), move || {
             sender.input(Msg::Capture(i));
         });
@@ -532,7 +590,7 @@ impl App {
     }
 
     fn refresh_nearest(&mut self) {
-        (self.nearest_value, self.nearest_detail) = text::nearest(&self.series_text, self.series);
+        self.nearest = text::nearest(&self.series_text, self.series);
     }
 
     fn refresh_pairs(&mut self) {

@@ -1,6 +1,9 @@
 //! Decode and encode through-hole resistor color bands.
 
-use crate::{Color, Error, value::approx_eq};
+use crate::{
+    Color, Error,
+    value::{approx_eq, scale10},
+};
 
 /// A decoded resistor.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -132,16 +135,8 @@ impl BandCount {
     }
 }
 
-fn pow10(exp: i32) -> f64 {
-    10f64.powi(exp.abs())
-}
-
 fn apply_exp(mantissa: f64, exp: i32) -> f64 {
-    if exp < 0 {
-        mantissa / pow10(exp)
-    } else {
-        mantissa * pow10(exp)
-    }
+    scale10(mantissa, exp)
 }
 
 /// Decode a list of band colors, read left to right.

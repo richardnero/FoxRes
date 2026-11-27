@@ -66,50 +66,63 @@ pub fn smd_code(code: &str) -> (String, String) {
     }
 }
 
-/// SMD markings for a typed value.
-pub fn smd_for_value(text: &str) -> String {
+/// SMD markings for a typed value: 3-digit, 4-digit and EIA-96.
+pub fn smd_for_value(text: &str) -> Result<[String; 3], String> {
     if text.trim().is_empty() {
-        return String::new();
+        return Ok(Default::default());
     }
-    match parse_ohms(text) {
-        Ok(ohms) => {
-            let show = |c: Option<String>| c.unwrap_or_else(|| "—".into());
-            format!(
-                "3-digit: {}    4-digit: {}    EIA-96: {}",
-                show(smd::encode_three(ohms)),
-                show(smd::encode_four(ohms)),
-                show(smd::encode_eia96(ohms))
-            )
-        }
-        Err(e) => e.to_string(),
-    }
+    let ohms = parse_ohms(text).map_err(|e| e.to_string())?;
+    let show = |c: Option<String>| c.unwrap_or_else(|| "not available".into());
+    Ok([
+        show(smd::encode_three(ohms)),
+        show(smd::encode_four(ohms)),
+        show(smd::encode_eia96(ohms)),
+    ])
 }
 
-fn pct(x: f64) -> String {
-    format!("{x:+.2} %")
+/// Signed percentage with a true minus sign.
+pub fn pct(x: f64) -> String {
+    let s = format!("{x:+.2} %");
+    s.replacen('-', "\u{2212}", 1)
 }
 
-/// Nearest value in a series: (headline, detail).
-pub fn nearest(text: &str, series: ESeries) -> (String, String) {
+/// Nearest value in a series.
+pub struct Nearest {
+    pub value: String,
+    pub detail: String,
+    pub below: String,
+    pub above: String,
+}
+
+/// Nearest value in a series, plus the values either side.
+pub fn nearest(text: &str, series: ESeries) -> Nearest {
+    let tolerance = format!(
+        "{} parts are typically ±{} %",
+        series.name(),
+        format_sig(series.tolerance(), 2)
+    );
+    let empty = |detail: String| Nearest {
+        value: String::new(),
+        detail,
+        below: String::new(),
+        above: String::new(),
+    };
     if text.trim().is_empty() {
-        return (
-            String::new(),
-            format!("Typical tolerance ±{} %", format_sig(series.tolerance(), 2)),
-        );
+        return empty(tolerance);
     }
     let result = parse_ohms(text).and_then(|t| Ok((t, series.nearest(t)?, series.neighbors(t)?)));
     match result {
-        Ok((t, near, (lo, hi))) => (
-            format!("{}  ({})", format_ohms(near), pct(error_percent(near, t))),
-            format!(
-                "Below: {} ({})    Above: {} ({})",
-                format_ohms(lo),
-                pct(error_percent(lo, t)),
-                format_ohms(hi),
-                pct(error_percent(hi, t))
+        Ok((t, near, (lo, hi))) => Nearest {
+            value: format_ohms(near),
+            detail: format!(
+                "{} from {}  ·  {tolerance}",
+                pct(error_percent(near, t)),
+                format_ohms(t)
             ),
-        ),
-        Err(e) => ("—".into(), e.to_string()),
+            below: format!("{}  ({})", format_ohms(lo), pct(error_percent(lo, t))),
+            above: format!("{}  ({})", format_ohms(hi), pct(error_percent(hi, t))),
+        },
+        Err(e) => empty(e.to_string()),
     }
 }
 

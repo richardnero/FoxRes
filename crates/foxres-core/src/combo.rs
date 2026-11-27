@@ -54,16 +54,23 @@ pub fn best_pair(target: f64, series: ESeries, connection: Connection) -> Result
                 Connection::Series => target - a,
                 Connection::Parallel => 1.0 / (1.0 / target - 1.0 / a),
             };
-            let b = series.nearest(needed).ok()?;
-            let total = connection.combine(a, b);
-            let (a, b) = if b > a { (b, a) } else { (a, b) };
-            Some(Pair {
-                connection,
-                a,
-                b,
-                total,
-                error: error_percent(total, target),
-            })
+            // Try the standard values either side of the ideal partner. The
+            // total is monotonic in `b`, so the best partner is one of them.
+            let (lo, hi) = series.neighbors(needed).ok()?;
+            [lo, hi]
+                .into_iter()
+                .map(|b| {
+                    let total = connection.combine(a, b);
+                    let (a, b) = if b > a { (b, a) } else { (a, b) };
+                    Pair {
+                        connection,
+                        a,
+                        b,
+                        total,
+                        error: error_percent(total, target),
+                    }
+                })
+                .min_by(|x, y| x.error.abs().total_cmp(&y.error.abs()))
         })
         .min_by(|x, y| x.error.abs().total_cmp(&y.error.abs()))
         .ok_or(Error::OutOfRange(target))

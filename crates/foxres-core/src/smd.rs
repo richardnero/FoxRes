@@ -1,6 +1,9 @@
 //! Surface-mount resistor markings.
 
-use crate::{ESeries, Error, value::approx_eq};
+use crate::{
+    ESeries, Error,
+    value::{approx_eq, scale10},
+};
 
 /// How an SMD code was written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -39,28 +42,28 @@ pub struct Smd {
     pub notation: Notation,
 }
 
-/// EIA-96 multiplier letters. `R` (= 0.01) is accepted by some makers but
-/// clashes with R notation, so codes like `10R` are read as R notation.
-const EIA_LETTERS: [(char, f64); 10] = [
-    ('Z', 0.001),
-    ('Y', 0.01),
-    ('X', 0.1),
-    ('S', 0.1),
-    ('A', 1.0),
-    ('B', 10.0),
-    ('H', 10.0),
-    ('C', 100.0),
-    ('D', 1000.0),
-    ('E', 10_000.0),
+/// EIA-96 multiplier letters and their powers of ten. `R` (= 10^-2) is used
+/// by some makers but clashes with R notation, so codes like `10R` are read as
+/// R notation. `S` and `H` are older alternatives for `X` and `B`.
+const EIA_LETTERS: [(char, i32); 11] = [
+    ('Z', -3),
+    ('Y', -2),
+    ('X', -1),
+    ('S', -1),
+    ('A', 0),
+    ('B', 1),
+    ('H', 1),
+    ('C', 2),
+    ('D', 3),
+    ('E', 4),
+    ('F', 5),
 ];
-const EIA_F: (char, f64) = ('F', 100_000.0);
 
-fn eia_multiplier(letter: char) -> Option<f64> {
+fn eia_exponent(letter: char) -> Option<i32> {
     EIA_LETTERS
         .iter()
-        .chain(std::iter::once(&EIA_F))
         .find(|(c, _)| *c == letter)
-        .map(|&(_, m)| m)
+        .map(|&(_, e)| e)
 }
 
 /// Decode an SMD resistor marking.
@@ -99,13 +102,13 @@ pub fn decode(code: &str) -> Result<Smd, Error> {
         3 if digits(&code[..2]) && !digits(&code[2..]) => {
             let index: usize = code[..2].parse().map_err(|_| err())?;
             let letter = code[2..].chars().next().ok_or_else(err)?;
-            let mult = eia_multiplier(letter).ok_or_else(err)?;
+            let exp = eia_exponent(letter).ok_or_else(err)?;
             let mantissa = ESeries::E96
                 .values()
                 .get(index.wrapping_sub(1))
                 .ok_or_else(err)?;
             Ok(Smd {
-                ohms: f64::from(*mantissa) * mult,
+                ohms: scale10(f64::from(*mantissa), exp),
                 notation: Notation::Eia96,
             })
         }
@@ -119,7 +122,7 @@ pub fn decode(code: &str) -> Result<Smd, Error> {
                 Notation::FourDigit
             };
             Ok(Smd {
-                ohms: mantissa * 10f64.powi(exp),
+                ohms: scale10(mantissa, exp),
                 notation,
             })
         }
@@ -135,7 +138,7 @@ fn encode_digits(ohms: f64, sig: usize) -> Option<String> {
     let floor = 10f64.powi(sig as i32 - 1);
     let code = if ohms >= floor {
         (0..=9).find_map(|exp| {
-            let m = ohms / 10f64.powi(exp);
+            let m = scale10(ohms, -exp);
             let r = m.round();
             (approx_eq(m, r) && r >= floor && r < floor * 10.0)
                 .then(|| format!("{}{exp}", r as u64))
@@ -175,10 +178,9 @@ pub fn encode_eia96(ohms: f64) -> Option<String> {
     let table = ESeries::E96.values();
     EIA_LETTERS
         .iter()
-        .chain(std::iter::once(&EIA_F))
         .filter(|(c, _)| *c != 'S' && *c != 'H')
-        .find_map(|&(letter, mult)| {
-            let m = ohms / mult;
+        .find_map(|&(letter, exp)| {
+            let m = scale10(ohms, -exp);
             let r = m.round();
             if !approx_eq(m, r) {
                 return None;

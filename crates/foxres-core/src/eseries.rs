@@ -156,12 +156,7 @@ impl ESeries {
 
 fn scaled(series: ESeries, mantissa: u16, decade: i32) -> f64 {
     let exp = decade - (series.digits() - 1);
-    let m = f64::from(mantissa);
-    if exp < 0 {
-        m / 10f64.powi(-exp)
-    } else {
-        m * 10f64.powi(exp)
-    }
+    crate::value::scale10(f64::from(mantissa), exp)
 }
 
 /// Percentage difference of `actual` from `target`.

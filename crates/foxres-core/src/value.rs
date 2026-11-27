@@ -2,7 +2,19 @@
 
 use crate::Error;
 
-const PREFIXES: [(f64, &str); 5] = [(1e9, "G"), (1e6, "M"), (1e3, "k"), (1.0, ""), (1e-3, "m")];
+const PREFIXES: [(i32, &str); 5] = [(9, "G"), (6, "M"), (3, "k"), (0, ""), (-3, "m")];
+
+/// `mantissa × 10^exp`, correctly rounded.
+///
+/// Powers of ten up to 10^22 are exact in `f64`, and IEEE 754 multiplication
+/// and division round correctly, so for an exact `mantissa` (any integer below
+/// 2^53) the result is the `f64` nearest the true decimal value. Multiplying by
+/// an inexact constant such as `0.001` would not be.
+pub fn scale10(mantissa: f64, exp: i32) -> f64 {
+    debug_assert!(exp.abs() <= 22, "10^{exp} is not exact in f64");
+    let p = 10f64.powi(exp.abs());
+    if exp < 0 { mantissa / p } else { mantissa * p }
+}
 
 /// Format a resistance with an SI prefix, e.g. `4700.0` → `"4.7 kΩ"`.
 ///
@@ -14,12 +26,12 @@ pub fn format_ohms(ohms: f64) -> String {
     if !ohms.is_finite() {
         return "∞ Ω".to_string();
     }
-    let (scale, prefix) = PREFIXES
+    let (exp, prefix) = PREFIXES
         .iter()
-        .find(|(s, _)| ohms.abs() >= *s * (1.0 - 1e-12))
+        .find(|(e, _)| ohms.abs() >= scale10(1.0, *e) * (1.0 - 1e-12))
         .copied()
         .unwrap_or(PREFIXES[PREFIXES.len() - 1]);
-    let scaled = ohms / scale;
+    let scaled = scale10(ohms, -exp);
     format!("{} {prefix}Ω", format_sig(scaled, 4))
 }
 
@@ -72,27 +84,37 @@ pub fn parse_ohms(input: &str) -> Result<f64, Error> {
         return number(&s).ok_or_else(err);
     };
 
-    let scale = match letter {
-        'R' | 'r' => 1.0,
-        'k' | 'K' => 1e3,
-        'M' => 1e6,
-        'm' => 1e-3,
-        _ => 1e9,
+    let exp = match letter {
+        'R' | 'r' => 0,
+        'k' | 'K' => 3,
+        'M' => 6,
+        'm' => -3,
+        _ => 9,
     };
     let (head, tail) = (&s[..idx], &s[idx + letter.len_utf8()..]);
-    let mantissa = if tail.is_empty() {
+    let digits = if tail.is_empty() {
         if head.is_empty() {
             return Err(err());
         }
-        number(head).ok_or_else(err)?
+        head.to_string()
     } else {
         if head.contains('.') || !tail.chars().all(|c| c.is_ascii_digit()) {
             return Err(err());
         }
         let head = if head.is_empty() { "0" } else { head };
-        number(&format!("{head}.{tail}")).ok_or_else(err)?
+        format!("{head}.{tail}")
     };
-    Ok(mantissa * scale)
+    number(&digits).ok_or_else(err)?;
+    // Let the decimal parser apply the exponent so the result is correctly
+    // rounded: "10m" is exactly the f64 nearest 0.01, not 10 × 0.001.
+    number_with_exp(&digits, exp).ok_or_else(err)
+}
+
+fn number_with_exp(digits: &str, exp: i32) -> Option<f64> {
+    format!("{digits}e{exp}")
+        .parse::<f64>()
+        .ok()
+        .filter(|v| v.is_finite())
 }
 
 fn number(s: &str) -> Option<f64> {
