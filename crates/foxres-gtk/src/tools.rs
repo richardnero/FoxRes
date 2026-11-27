@@ -13,7 +13,7 @@ use foxres_core::{
 };
 use relm4::{
     adw::{self, prelude::*},
-    gtk,
+    gtk::{self, glib},
 };
 
 use crate::text::pct;
@@ -550,7 +550,7 @@ pub fn all() -> Vec<Tool> {
                 Input::Choice {
                     key: "dir",
                     title: "Convert",
-                    options: &["Temperature to resistance", "Resistance to temperature"],
+                    options: &["°C → Ω", "Ω → °C"],
                     default: 0,
                 },
                 Input::Text {
@@ -572,7 +572,7 @@ pub fn all() -> Vec<Tool> {
                     _ => 100.0,
                 };
                 let x = v.num("value", "Value", &["°C", "C", "Ω"])?;
-                let (t, r) = if v.text("dir").starts_with("Temperature") {
+                let (t, r) = if v.text("dir").starts_with("°C") {
                     (
                         x,
                         rtd::resistance(r0, x)
@@ -640,7 +640,7 @@ pub fn all() -> Vec<Tool> {
                 Input::Choice {
                     key: "dir",
                     title: "Convert",
-                    options: &["Temperature to resistance", "Resistance to temperature"],
+                    options: &["°C → Ω", "Ω → °C"],
                     default: 0,
                 },
                 Input::Text {
@@ -651,7 +651,7 @@ pub fn all() -> Vec<Tool> {
             ],
             compute: |v| {
                 let x = v.text("value");
-                let to_r = v.text("dir").starts_with("Temperature");
+                let to_r = v.text("dir").starts_with("°C");
                 let mut rows = Vec::new();
                 let (t, r) = if v.text("model") == "Beta" {
                     let (r0, b) = (v.ohms("r0", "R at 25 °C")?, v.num("beta", "Beta", &["K"])?);
@@ -992,9 +992,9 @@ pub fn all() -> Vec<Tool> {
 /// Build the page for `tool`. Results update as the inputs change.
 pub fn page(tool: Tool) -> adw::PreferencesPage {
     let page = adw::PreferencesPage::new();
+    // The page title is already in the header bar; the group carries the description.
     let inputs = adw::PreferencesGroup::builder()
-        .title(tool.title)
-        .description(tool.description)
+        .description(glib::markup_escape_text(tool.description).as_str())
         .build();
     let results = adw::PreferencesGroup::new();
     page.add(&inputs);
@@ -1030,6 +1030,7 @@ pub fn page(tool: Tool) -> adw::PreferencesPage {
             let failed = lines.len() == 1 && lines[0].0 == "Check the inputs";
             for (title, value) in lines {
                 let row = adw::ActionRow::builder()
+                    .use_markup(false)
                     .title(title)
                     .subtitle(value)
                     .subtitle_selectable(true)
@@ -1051,7 +1052,11 @@ pub fn page(tool: Tool) -> adw::PreferencesPage {
                 title,
                 default,
             } => {
-                let entry = adw::EntryRow::builder().title(title).text(default).build();
+                let entry = adw::EntryRow::builder()
+                    .use_markup(false)
+                    .title(title)
+                    .text(default)
+                    .build();
                 let (values, refresh) = (values.clone(), refresh.clone());
                 entry.connect_changed(move |e| {
                     values.borrow_mut().0.insert(key, e.text().to_string());
@@ -1066,6 +1071,7 @@ pub fn page(tool: Tool) -> adw::PreferencesPage {
                 default,
             } => {
                 let combo = adw::ComboRow::builder()
+                    .use_markup(false)
                     .title(title)
                     .model(&gtk::StringList::new(options))
                     .selected(default)

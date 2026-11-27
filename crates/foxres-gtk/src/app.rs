@@ -105,7 +105,8 @@ pub enum Msg {
     Navigate(i32),
     OpenWebsite,
     Shot(usize),
-    Capture(usize),
+    /// Screenshot index and attempt number.
+    Capture(usize, u32),
 }
 
 const DEFAULT_SERIES: u32 = 3; // E24
@@ -591,12 +592,22 @@ impl SimpleComponent for App {
                 );
             }
             Msg::Shot(i) => self.prepare_shot(i, &sender),
-            Msg::Capture(i) => {
+            Msg::Capture(i, attempt) => {
                 if let (Some(dir), Some(shot)) = (&self.screenshots, screenshot::SHOTS.get(i)) {
                     let path = dir.join(shot.file);
                     gtk::prelude::GtkWindowExt::set_focus(&self.window, gtk::Widget::NONE);
                     match screenshot::save(&self.window, &path) {
                         Ok(()) => eprintln!("saved {}", path.display()),
+                        // No frame yet (window covered or not redrawn): ask for one and retry.
+                        Err(_) if attempt < 20 => {
+                            self.window.present();
+                            self.window.queue_draw();
+                            let sender = sender.clone();
+                            glib::timeout_add_local_once(Duration::from_millis(250), move || {
+                                sender.input(Msg::Capture(i, attempt + 1));
+                            });
+                            return;
+                        }
                         Err(e) => eprintln!("could not save {}: {e}", path.display()),
                     }
                 }
@@ -624,6 +635,7 @@ impl App {
         } else {
             adw::ColorScheme::ForceLight
         });
+        self.window.present();
         if let Some(i) = NAV.iter().position(|(id, _, _)| *id == shot.page) {
             self.sidebar
                 .select_row(self.sidebar.row_at_index(i as i32).as_ref());
@@ -631,7 +643,7 @@ impl App {
         let sender = sender.clone();
         gtk::prelude::GtkWindowExt::set_focus(&self.window, gtk::Widget::NONE);
         glib::timeout_add_local_once(Duration::from_millis(700), move || {
-            sender.input(Msg::Capture(i));
+            sender.input(Msg::Capture(i, 0));
         });
     }
 
