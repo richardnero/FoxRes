@@ -79,8 +79,8 @@ jobs:
           set -e
           snap list foxres gnome-46-2404
           foxres --version
-          test "$(foxres --json smd 472 | jq -r .ohms)" = "4700"
-          test "$(foxres --json rtd --temp 100 | jq '(.ohms - 138.5055) | fabs < 1e-9')" = "true"
+          foxres --json smd 472 | jq -e '.ohms == 4700'
+          foxres --json rtd --temp 100 | jq -e '(.ohms - 138.5055) | fabs < 1e-9'
           foxres divider --vin 12 --vout 3.3
 
   # Push a tag such as v0.2.1 to publish both architectures to the Snap Store
