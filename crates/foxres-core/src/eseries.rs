@@ -126,18 +126,41 @@ impl ESeries {
         if !(ohms > 0.0 && ohms.is_finite()) {
             return Err(Error::OutOfRange(ohms));
         }
-        let candidates = self.range(ohms / 10.0, ohms * 10.0);
-        let below = candidates
-            .iter()
-            .copied()
-            .rfind(|&v| v <= ohms * (1.0 + 1e-12))
-            .ok_or(Error::OutOfRange(ohms))?;
-        let above = candidates
-            .iter()
-            .copied()
-            .find(|&v| v >= ohms * (1.0 - 1e-12))
-            .ok_or(Error::OutOfRange(ohms))?;
-        Ok((below, above))
+        // Candidates, ascending: the last value of the previous decade, every
+        // value of the decade containing `ohms`, and the first of the next.
+        // Binary search over them needs no allocation, so this is cheap enough
+        // to call millions of times from the combination searches.
+        let values = self.values();
+        let n = values.len();
+        let exp = ohms.log10().floor() as i32 - (self.digits() - 1);
+        let at = |i: usize| -> f64 {
+            if i == 0 {
+                crate::value::scale10(f64::from(values[n - 1]), exp - 1)
+            } else if i <= n {
+                crate::value::scale10(f64::from(values[i - 1]), exp)
+            } else {
+                crate::value::scale10(f64::from(values[0]), exp + 1)
+            }
+        };
+        // First index in 0..n + 2 where `pred` holds (pred is monotonic).
+        let first = |pred: &dyn Fn(f64) -> bool| -> usize {
+            let (mut lo, mut hi) = (0, n + 2);
+            while lo < hi {
+                let mid = usize::midpoint(lo, hi);
+                if pred(at(mid)) {
+                    hi = mid;
+                } else {
+                    lo = mid + 1;
+                }
+            }
+            lo
+        };
+        let above_i = first(&|v| v >= ohms * (1.0 - 1e-12));
+        let below_end = first(&|v| v > ohms * (1.0 + 1e-12));
+        if above_i > n + 1 || below_end == 0 {
+            return Err(Error::OutOfRange(ohms));
+        }
+        Ok((at(below_end - 1), at(above_i)))
     }
 
     /// Closest series value to `ohms`, compared on a logarithmic scale.
@@ -233,5 +256,50 @@ mod tests {
         assert_eq!("e96".parse::<ESeries>().unwrap(), ESeries::E96);
         assert_eq!("12".parse::<ESeries>().unwrap(), ESeries::E12);
         assert!("E7".parse::<ESeries>().is_err());
+    }
+
+    /// The original allocation-based definition, kept as the reference.
+    fn neighbors_reference(series: ESeries, ohms: f64) -> (f64, f64) {
+        let c = series.range(ohms / 10.0, ohms * 10.0);
+        let below = c
+            .iter()
+            .copied()
+            .rfind(|&v| v <= ohms * (1.0 + 1e-12))
+            .unwrap();
+        let above = c
+            .iter()
+            .copied()
+            .find(|&v| v >= ohms * (1.0 - 1e-12))
+            .unwrap();
+        (below, above)
+    }
+
+    #[test]
+    fn fast_neighbors_match_reference() {
+        for series in ESeries::ALL {
+            // Every series value itself, across decades, and points between them.
+            for decade in -2..=8 {
+                for &m in series.values() {
+                    let v = scaled(series, m, decade);
+                    for x in [v, v * (1.0 + 1e-9), v * (1.0 - 1e-9), v * 1.004, v * 0.996] {
+                        assert_eq!(
+                            series.neighbors(x).unwrap(),
+                            neighbors_reference(series, x),
+                            "{} {x}",
+                            series.name()
+                        );
+                    }
+                }
+            }
+            for k in 0..20_000 {
+                let x = 10f64.powf(-1.5 + f64::from(k) * 0.0005);
+                assert_eq!(
+                    series.neighbors(x).unwrap(),
+                    neighbors_reference(series, x),
+                    "{} {x}",
+                    series.name()
+                );
+            }
+        }
     }
 }

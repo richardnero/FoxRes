@@ -124,6 +124,89 @@ fn number(s: &str) -> Option<f64> {
     s.parse::<f64>().ok().filter(|v| v.is_finite())
 }
 
+/// SI prefixes used by [`format_si`], largest first.
+const SI_PREFIXES: [(i32, &str); 9] = [
+    (9, "G"),
+    (6, "M"),
+    (3, "k"),
+    (0, ""),
+    (-3, "m"),
+    (-6, "µ"),
+    (-9, "n"),
+    (-12, "p"),
+    (-15, "f"),
+];
+
+/// Format a quantity with an SI prefix and unit, e.g. `0.0123, "A"` → `"12.3 mA"`.
+pub fn format_si(value: f64, unit: &str) -> String {
+    if value == 0.0 {
+        return format!("0 {unit}");
+    }
+    if !value.is_finite() {
+        return format!("{value} {unit}");
+    }
+    let (exp, prefix) = SI_PREFIXES
+        .iter()
+        .find(|(e, _)| value.abs() >= scale10(1.0, *e) * (1.0 - 1e-12))
+        .copied()
+        .unwrap_or(SI_PREFIXES[SI_PREFIXES.len() - 1]);
+    format!("{} {prefix}{unit}", format_sig(scale10(value, -exp), 4))
+}
+
+/// Parse a quantity with an optional SI prefix and unit: `12`, `12V`, `20m`,
+/// `20 mA`, `4u7`, `1.5k`, `-40`. Any of `units` may follow the number.
+/// Both `u` and `µ` mean micro; `m` is milli and `M` is mega.
+///
+/// # Errors
+/// [`Error::Parse`] if the text is not a number with an optional prefix.
+pub fn parse_si(input: &str, units: &[&str]) -> Result<f64, Error> {
+    let err = || Error::Parse(input.trim().to_string());
+    let mut s: String = input.chars().filter(|c| !c.is_whitespace()).collect();
+    for unit in units {
+        if let Some(stripped) = s.strip_suffix(unit) {
+            s = stripped.to_string();
+            break;
+        }
+    }
+    let (negative, body) = match s.strip_prefix('-') {
+        Some(rest) => (true, rest.to_string()),
+        None => (false, s.clone()),
+    };
+    if body.is_empty() {
+        return Err(err());
+    }
+    let prefix = body.char_indices().find(|(_, c)| "pnuµmkKMG".contains(*c));
+    let value = match prefix {
+        None => number(&body).ok_or_else(err)?,
+        Some((idx, letter)) => {
+            let exp = match letter {
+                'p' => -12,
+                'n' => -9,
+                'u' | 'µ' => -6,
+                'm' => -3,
+                'k' | 'K' => 3,
+                'M' => 6,
+                _ => 9,
+            };
+            let (head, tail) = (&body[..idx], &body[idx + letter.len_utf8()..]);
+            let digits = if tail.is_empty() {
+                if head.is_empty() {
+                    return Err(err());
+                }
+                head.to_string()
+            } else {
+                if head.contains('.') || !tail.chars().all(|c| c.is_ascii_digit()) {
+                    return Err(err());
+                }
+                format!("{}.{tail}", if head.is_empty() { "0" } else { head })
+            };
+            number(&digits).ok_or_else(err)?;
+            number_with_exp(&digits, exp).ok_or_else(err)?
+        }
+    };
+    Ok(if negative { -value } else { value })
+}
+
 /// True when two resistances are equal to within one part per billion.
 pub fn approx_eq(a: f64, b: f64) -> bool {
     if a == b {
@@ -177,5 +260,29 @@ mod tests {
         for bad in ["", "k", "abc", "4.7k7", "-10", "4k7x", "1..2"] {
             assert!(parse_ohms(bad).is_err(), "{bad} should fail");
         }
+    }
+
+    #[test]
+    fn si_quantities() {
+        let cases = [
+            ("12", 12.0),
+            ("12V", 12.0),
+            ("20m", 0.02),
+            ("20 mA", 0.02),
+            ("4u7", 4.7e-6),
+            ("4.7µ", 4.7e-6),
+            ("1.5k", 1500.0),
+            ("2M2", 2.2e6),
+            ("-40", -40.0),
+            ("100n", 1e-7),
+        ];
+        for (text, want) in cases {
+            let got = parse_si(text, &["V", "A"]).unwrap();
+            assert!(approx_eq(got, want), "{text}: {got}");
+        }
+        assert!(parse_si("abc", &[]).is_err());
+        assert_eq!(format_si(0.0123, "A"), "12.3 mA");
+        assert_eq!(format_si(4.06e-9, "V"), "4.06 nV");
+        assert_eq!(format_si(1500.0, "W"), "1.5 kW");
     }
 }
