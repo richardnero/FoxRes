@@ -16,11 +16,13 @@ use foxres_core::{
 };
 use serde_json::{Value, json};
 
+mod tools;
+
 #[derive(Debug, Parser)]
 #[command(
     name = "foxres",
     version,
-    about = "Resistor calculator: color bands, SMD codes, E-series values and combinations",
+    about = "Resistor calculator and design toolkit: color codes, SMD markings, E-series, dividers, power, tolerance, RTDs, thermistors, 4-20 mA loops and wiring",
     after_help = "Run with no arguments to open the window.\n\n\
         Values accept engineering notation: 4700, 4.7k, 4k7, 100R, R47, 2M2, 10m (milliohms).\n\n\
         Examples:\n  \
@@ -29,7 +31,16 @@ use serde_json::{Value, json};
         foxres smd 01C\n  \
         foxres marking 4.99k\n  \
         foxres nearest 5k --series E96\n  \
-        foxres combine 5.7k --series E12 --json"
+        foxres combine 5.7k --series E12 --json\n  \
+        foxres ohm -V 12 -R 470\n  \
+        foxres power 470 -V 12 --ambient 60\n  \
+        foxres divider --vin 12 --vout 3.3\n  \
+        foxres led --supply 5 --vf 2 -I 20m\n  \
+        foxres tolerance divider 10k:1 4k7:1\n  \
+        foxres rtd --temp 100 --r0 1000\n  \
+        foxres ntc --beta 3950 --ohms 3.6k\n  \
+        foxres loop --ma 12 --range 0:150 --supply 24 --tx-min 12\n  \
+        foxres wire --awg 18 --length 150 --round-trip"
 )]
 pub struct Cli {
     /// Print machine-readable JSON instead of text.
@@ -79,7 +90,7 @@ enum Command {
         #[arg(short, long, default_value = "E24")]
         series: ESeries,
     },
-    /// Find the best two-resistor series and parallel combinations.
+    /// Find the best two- and three-resistor combinations of standard values.
     Combine {
         #[arg(value_name = "VALUE")]
         value: String,
@@ -87,12 +98,42 @@ enum Command {
         #[arg(short, long, default_value = "E24")]
         series: ESeries,
     },
+    /// Ohm's law: give any two of -V, -I, -R and -P.
+    Ohm(tools::OhmArgs),
+    /// Check power and voltage against package ratings, with derating.
+    Power(tools::PowerArgs),
+    /// Design or analyse a voltage divider.
+    Divider(tools::DividerArgs),
+    /// Size an LED series resistor.
+    Led(tools::LedArgs),
+    /// Resistors in series.
+    Series(tools::NetArgs),
+    /// Resistors in parallel.
+    Parallel(tools::NetArgs),
+    /// Worst-case and RSS tolerance of a series, parallel or divider circuit.
+    Tolerance(tools::ToleranceArgs),
+    /// Resistance change with temperature from a tempco.
+    Drift(tools::DriftArgs),
+    /// Johnson–Nyquist thermal noise.
+    Noise(tools::NoiseArgs),
+    /// Pt100/Pt1000 RTD to IEC 60751, with tolerance classes.
+    Rtd(tools::RtdArgs),
+    /// NTC thermistor: Beta, Steinhart–Hart, or fit from three points.
+    Ntc(tools::NtcArgs),
+    /// 4–20 mA loop scaling, NAMUR NE43 status, loop budget and HART.
+    Loop(tools::LoopArgs),
+    /// Wheatstone bridge output, or the balancing resistor.
+    Bridge(tools::BridgeArgs),
+    /// Wire resistance by AWG, mm² or diameter.
+    Wire(tools::WireArgs),
+    /// PCB trace resistance and IPC-2221 current capacity.
+    Trace(tools::TraceArgs),
 }
 
 /// Result of a command: what to print as text and as JSON.
-struct Output {
-    text: String,
-    json: Value,
+pub(crate) struct Output {
+    pub(crate) text: String,
+    pub(crate) json: Value,
 }
 
 /// Parse `args` (including the program name) and run the command.
@@ -188,6 +229,21 @@ fn execute(command: &Command) -> Result<Output, Box<dyn std::error::Error>> {
         }
         Command::Nearest { value, series } => nearest(value, *series),
         Command::Combine { value, series } => combine(value, *series),
+        Command::Ohm(a) => tools::ohm_law(a),
+        Command::Power(a) => tools::power_check(a),
+        Command::Divider(a) => tools::divider(a),
+        Command::Led(a) => tools::led(a),
+        Command::Series(a) => tools::net(a, false),
+        Command::Parallel(a) => tools::net(a, true),
+        Command::Tolerance(a) => tools::tolerance(a),
+        Command::Drift(a) => tools::drift(a),
+        Command::Noise(a) => tools::noise(a),
+        Command::Rtd(a) => tools::rtd_cmd(a),
+        Command::Ntc(a) => tools::ntc_cmd(a),
+        Command::Loop(a) => tools::current_loop_cmd(a),
+        Command::Bridge(a) => tools::bridge_cmd(a),
+        Command::Wire(a) => tools::wire_cmd(a),
+        Command::Trace(a) => tools::trace_cmd(a),
     }
 }
 
@@ -312,19 +368,29 @@ fn combine(value: &str, series: ESeries) -> Result<Output, Box<dyn std::error::E
     let target = parse_ohms(value)?;
     let s = combo::best_pair(target, series, Connection::Series)?;
     let p = combo::best_pair(target, series, Connection::Parallel)?;
+    let t = foxres_core::network::best_triple(target, series)?;
+    let three = format!(
+        "{} = {} ({})",
+        t.topology
+            .describe(&format_ohms(t.a), &format_ohms(t.b), &format_ohms(t.c)),
+        format_ohms(t.total),
+        pct(t.error)
+    );
     Ok(Output {
         text: format!(
-            "Target {} from {}\nSeries:   {}\nParallel: {}",
+            "Target {} from {}\nSeries:   {}\nParallel: {}\nThree:    {}",
             format_ohms(target),
             series.name(),
             pair_text(&s, "+"),
-            pair_text(&p, "∥")
+            pair_text(&p, "∥"),
+            three
         ),
         json: json!({
             "target_ohms": target,
             "series": series.name(),
             "series_pair": pair_json(&s),
             "parallel_pair": pair_json(&p),
+            "triple": { "topology": format!("{:?}", t.topology), "a_ohms": t.a, "b_ohms": t.b, "c_ohms": t.c, "total_ohms": t.total, "error_percent": t.error },
         }),
     })
 }
@@ -383,5 +449,55 @@ mod tests {
         assert!(Cli::try_parse_from(["foxres", "colors", "1k", "-n", "7"]).is_err());
         let cli = Cli::try_parse_from(["foxres", "colors", "4750", "-n", "4"]).unwrap();
         assert!(execute(&cli.command).is_err());
+    }
+
+    #[test]
+    fn design_commands() {
+        let o = out(&["ohm", "-V", "12", "-R", "480"]);
+        assert!((o.json["amps"].as_f64().unwrap() - 0.025).abs() < 1e-15);
+        assert_eq!(
+            out(&["power", "1k", "-P", "100m"]).json["smallest"]["SMD"],
+            "1206"
+        );
+        let d = out(&["divider", "--ratio", "0.5"]);
+        assert!(d.json["error_percent"].as_f64().unwrap().abs() < 1e-12);
+        assert_eq!(
+            out(&["led", "--supply", "5", "--vf", "2"]).json["ohms"],
+            150.0
+        );
+        assert_eq!(out(&["parallel", "1k", "1k"]).json["ohms"], 500.0);
+        assert_eq!(out(&["series", "1k", "2k2"]).json["ohms"], 3200.0);
+        let r = out(&["rtd", "--temp", "100"]);
+        assert!((r.json["ohms"].as_f64().unwrap() - 138.5055).abs() < 1e-9);
+        let r = out(&["rtd", "--ohms", "1385.055", "--r0", "1k"]);
+        assert!((r.json["temp_c"].as_f64().unwrap() - 100.0).abs() < 1e-9);
+        let n = out(&["ntc", "--beta", "3950", "--temp", "25"]);
+        assert!((n.json["ohms"].as_f64().unwrap() - 10_000.0).abs() < 1e-9);
+        let l = out(&[
+            "loop", "--ma", "12", "--range", "0:150", "--supply", "24", "--tx-min", "12",
+        ]);
+        assert_eq!(l.json["value"], 75.0);
+        assert_eq!(l.json["max_loop_ohms"], 600.0);
+        let t = out(&["tolerance", "series", "1k:1", "2k:1"]);
+        assert!((t.json["max"].as_f64().unwrap() - 3030.0).abs() < 1e-9);
+        assert!(
+            out(&["bridge", "1k", "1k", "1k", "1k"]).json["volts"]
+                .as_f64()
+                .unwrap()
+                .abs()
+                < 1e-15
+        );
+        let w = out(&["wire", "--awg", "24", "--length", "1000"]);
+        assert!((w.json["ohms"].as_f64().unwrap() - 84.2).abs() < 0.3);
+        let tr = out(&["trace", "-I", "1", "--oz", "1"]);
+        assert!((tr.json["max_amps"].as_f64().unwrap() - 1.0).abs() < 1e-9);
+        let c = out(&["combine", "1234", "-s", "E12"]);
+        assert!(
+            c.json["triple"]["error_percent"].as_f64().unwrap().abs()
+                <= c.json["series_pair"]["error_percent"]
+                    .as_f64()
+                    .unwrap()
+                    .abs()
+        );
     }
 }
