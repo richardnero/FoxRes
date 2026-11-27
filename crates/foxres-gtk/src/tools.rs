@@ -35,6 +35,9 @@ pub enum Input {
     },
 }
 
+/// Turns the inputs into labelled result lines, or an error message.
+pub type Compute = fn(&Values) -> Result<Vec<(String, String)>, String>;
+
 /// Result rows currently shown on a page.
 type ResultRows = Rc<RefCell<Vec<adw::ActionRow>>>;
 
@@ -44,7 +47,7 @@ pub struct Tool {
     pub title: &'static str,
     pub description: &'static str,
     pub inputs: Vec<Input>,
-    pub compute: fn(&Values) -> Result<Vec<(String, String)>, String>,
+    pub compute: Compute,
 }
 
 /// Current input values, by key.
