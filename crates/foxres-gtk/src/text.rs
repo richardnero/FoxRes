@@ -135,29 +135,32 @@ pub fn pairs(text: &str, series: ESeries) -> (String, String, String) {
         Ok(t) => t,
         Err(e) => return (e.to_string(), String::new(), String::new()),
     };
+    let pair = |c: Connection| combo::best_pair(target, series, c);
+    let line = |p: &combo::Pair, sym: &str| {
+        format!(
+            "{} {sym} {} = {}  ({})",
+            format_ohms(p.a),
+            format_ohms(p.b),
+            format_ohms(p.total),
+            pct(p.error)
+        )
+    };
+    let (s, p) = match (pair(Connection::Series), pair(Connection::Parallel)) {
+        (Ok(s), Ok(p)) => (s, p),
+        (Err(e), _) | (_, Err(e)) => return (e.to_string(), String::new(), String::new()),
+    };
+    let best_pair = s.error.abs().min(p.error.abs());
+    // Three resistors are only worth suggesting when they beat the best pair.
     let triple = match foxres_core::network::best_triple(target, series) {
-        Ok(t) => format!(
+        Ok(t) if t.error.abs() < best_pair - 1e-9 => format!(
             "{} = {}  ({})",
             t.topology
                 .describe(&format_ohms(t.a), &format_ohms(t.b), &format_ohms(t.c)),
             format_ohms(t.total),
             pct(t.error)
         ),
+        Ok(_) => "Not needed: a pair is already as close".to_string(),
         Err(e) => e.to_string(),
     };
-    let line = |c: Connection, sym: &str| match combo::best_pair(target, series, c) {
-        Ok(p) => format!(
-            "{} {sym} {} = {}  ({})",
-            format_ohms(p.a),
-            format_ohms(p.b),
-            format_ohms(p.total),
-            pct(p.error)
-        ),
-        Err(e) => e.to_string(),
-    };
-    (
-        line(Connection::Series, "+"),
-        line(Connection::Parallel, "∥"),
-        triple,
-    )
+    (line(&s, "+"), line(&p, "∥"), triple)
 }

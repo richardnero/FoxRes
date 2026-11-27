@@ -4,18 +4,41 @@
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>MIT</project_license>
   <name>FoxRes</name>
-  <summary>Resistor color codes, SMD markings and standard values</summary>
+  <summary>The resistor toolkit, from color codes to 4–20 mA loops</summary>
   <description>
-    <p>FoxRes is a fast, exact resistor calculator for anyone who builds or repairs electronics.</p>
+    <p>FoxRes is an exact resistor toolkit for anyone who designs, builds, repairs or commissions
+    electronics and instrumentation.</p>
+    <p>Identify:</p>
     <ul>
-      <li>Decode 3, 4, 5 and 6-band color codes, or type a value such as 4k7 to get its bands</li>
-      <li>Read and generate SMD markings: 3-digit, 4-digit, R notation and EIA-96</li>
-      <li>Find the nearest E3 to E192 standard value, with the values either side</li>
-      <li>Find the best series or parallel pair of standard values for any target</li>
-      <li>Use every calculation from the command line, with JSON output for scripts</li>
+      <li>3, 4, 5 and 6-band color codes (IEC 60062), both directions</li>
+      <li>SMD markings: 3-digit, 4-digit, R notation and EIA-96</li>
     </ul>
-    <p>Every color code and every SMD code is checked by exhaustive tests, and the E-series tables
-    are verified against IEC 60063.</p>
+    <p>Choose:</p>
+    <ul>
+      <li>Nearest E3 to E192 standard value (IEC 60063)</li>
+      <li>Best two- and three-resistor combinations for any value</li>
+      <li>Voltage divider design with tolerance and loading</li>
+      <li>LED series resistor</li>
+    </ul>
+    <p>Analyze:</p>
+    <ul>
+      <li>Ohm's law and power</li>
+      <li>Package power and voltage limits with temperature derating</li>
+      <li>Any number of resistors in series or parallel</li>
+      <li>Worst-case and RSS tolerance analysis</li>
+      <li>Temperature-coefficient drift and Johnson noise</li>
+    </ul>
+    <p>Instrumentation and wiring:</p>
+    <ul>
+      <li>Pt100/Pt1000 RTDs to IEC 60751 with tolerance classes</li>
+      <li>NTC thermistors: Beta and Steinhart–Hart, with a three-point fit</li>
+      <li>4–20 mA loops: scaling, NAMUR NE43 status, loop budget and HART</li>
+      <li>Wheatstone bridges</li>
+      <li>Wire resistance by AWG or mm², and PCB trace resistance and IPC-2221 current</li>
+    </ul>
+    <p>Every tool also runs from the command line, with JSON output for scripts. Every color code
+    and SMD code is checked by exhaustive tests, and results are cross-checked against brute force
+    and published reference tables.</p>
   </description>
   <launchable type="desktop-id">io.foxiq.FoxRes.desktop</launchable>
   <developer id="io.foxiq">
@@ -57,6 +80,22 @@
       <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/combine.png</image>
     </screenshot>
     <screenshot>
+      <caption>Voltage divider design with tolerance and loading</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/divider.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Power and package check with derating</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/power.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Pt100/Pt1000 RTD to IEC 60751</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/rtd.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>4–20 mA loop scaling, NE43 status and loop budget</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/current-loop.png</image>
+    </screenshot>
+    <screenshot>
       <caption>Dark mode</caption>
       <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/color-code-dark.png</image>
     </screenshot>
@@ -71,6 +110,15 @@
   </branding>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.0" date="2026-11-27">
+      <description>
+        <p>FoxRes becomes a complete resistor toolkit, with 13 new tools: voltage dividers, LED
+        resistors, Ohm's law, package power and derating, series and parallel networks, tolerance
+        analysis, drift and noise, RTDs, NTC thermistors, 4–20 mA loops, Wheatstone bridges, wire
+        and PCB traces. Three-resistor combinations, a new adaptive sidebar, and every tool on the
+        command line.</p>
+      </description>
+    </release>
     <release version="0.1.0" date="2026-11-26">
       <description>
         <p>First release: color bands, SMD codes, E-series values, two-resistor combinations and a

@@ -369,13 +369,19 @@ fn combine(value: &str, series: ESeries) -> Result<Output, Box<dyn std::error::E
     let s = combo::best_pair(target, series, Connection::Series)?;
     let p = combo::best_pair(target, series, Connection::Parallel)?;
     let t = foxres_core::network::best_triple(target, series)?;
-    let three = format!(
-        "{} = {} ({})",
-        t.topology
-            .describe(&format_ohms(t.a), &format_ohms(t.b), &format_ohms(t.c)),
-        format_ohms(t.total),
-        pct(t.error)
-    );
+    // Three resistors are only worth suggesting when they beat the best pair.
+    let improves = t.error.abs() < s.error.abs().min(p.error.abs()) - 1e-9;
+    let three = if improves {
+        format!(
+            "{} = {} ({})",
+            t.topology
+                .describe(&format_ohms(t.a), &format_ohms(t.b), &format_ohms(t.c)),
+            format_ohms(t.total),
+            pct(t.error)
+        )
+    } else {
+        "not needed, a pair is already as close".to_string()
+    };
     Ok(Output {
         text: format!(
             "Target {} from {}\nSeries:   {}\nParallel: {}\nThree:    {}",
@@ -390,7 +396,7 @@ fn combine(value: &str, series: ESeries) -> Result<Output, Box<dyn std::error::E
             "series": series.name(),
             "series_pair": pair_json(&s),
             "parallel_pair": pair_json(&p),
-            "triple": { "topology": format!("{:?}", t.topology), "a_ohms": t.a, "b_ohms": t.b, "c_ohms": t.c, "total_ohms": t.total, "error_percent": t.error },
+            "triple": if improves { json!({ "topology": format!("{:?}", t.topology), "a_ohms": t.a, "b_ohms": t.b, "c_ohms": t.c, "total_ohms": t.total, "error_percent": t.error }) } else { Value::Null },
         }),
     })
 }
@@ -498,6 +504,21 @@ mod tests {
                     .as_f64()
                     .unwrap()
                     .abs()
+        );
+    }
+
+    #[test]
+    fn triple_only_when_better() {
+        // 5.7 kΩ is exact as 5.6 kΩ + 100 Ω, so no triple is offered.
+        assert!(out(&["combine", "5.7k", "-s", "E24"]).json["triple"].is_null());
+        // 1234 Ω has no exact E12 pair, and three resistors do better.
+        let c = out(&["combine", "1234", "-s", "E12"]);
+        let t = c.json["triple"]["error_percent"].as_f64().unwrap().abs();
+        assert!(
+            t < c.json["series_pair"]["error_percent"]
+                .as_f64()
+                .unwrap()
+                .abs()
         );
     }
 }

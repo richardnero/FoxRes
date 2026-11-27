@@ -302,7 +302,7 @@ pub fn all() -> Vec<Tool> {
         Tool {
             id: "power",
             title: "Power & Package",
-            description: "Power and voltage against typical package ratings, derated from 70 °C to zero at 155 °C",
+            description: "Power and voltage against typical package ratings, derated above 70 °C",
             inputs: vec![
                 Input::Text {
                     key: "r",

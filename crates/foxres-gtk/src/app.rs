@@ -356,8 +356,8 @@ impl SimpleComponent for App {
 
                     add_titled_with_icon[Some("combine"), "Combine", "list-add-symbolic"] = &adw::PreferencesPage {
                         add = &adw::PreferencesGroup {
-                            set_title: "Two-resistor combinations",
-                            set_description: Some("Best pair of standard values for a value you don't stock"),
+                            set_title: "Combinations",
+                            set_description: Some("Build a value you don't stock from two or three standard values"),
                             #[local_ref]
                             add = combo_entry -> adw::EntryRow {
                                 set_title: "Target resistance",
