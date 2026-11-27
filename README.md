@@ -23,11 +23,12 @@ A GNOME app and command-line tool, written in Rust. By [FoxIQ](https://www.foxiq
 | | LED series resistor | Worst-case and RSS tolerance | Wheatstone bridge |
 | | | Tempco drift and Johnson noise | Wire (AWG, mm²) and PCB trace (IPC-2221) |
 
-Light and dark mode, keyboard navigation and screen-reader labels.
+Light and dark mode, keyboard navigation, screen-reader labels, and an adaptive layout: on narrow
+screens the sidebar folds away into back-and-forth navigation.
 
-| Divider | Power | RTD | 4–20 mA |
-|---|---|---|---|
-| <img src="docs/screenshots/divider.png" width="200" alt="Voltage divider"> | <img src="docs/screenshots/power.png" width="200" alt="Power and package"> | <img src="docs/screenshots/rtd.png" width="200" alt="RTD"> | <img src="docs/screenshots/current-loop.png" width="200" alt="4-20 mA loop"> |
+| Divider | Power | RTD | 4–20 mA | Narrow |
+|---|---|---|---|---|
+| <img src="docs/screenshots/divider.png" width="200" alt="Voltage divider"> | <img src="docs/screenshots/power.png" width="200" alt="Power and package"> | <img src="docs/screenshots/rtd.png" width="200" alt="RTD"> | <img src="docs/screenshots/current-loop.png" width="200" alt="4-20 mA loop"> | <img src="docs/screenshots/narrow.png" width="110" alt="Narrow layout"> |
 
 ## Command line
 

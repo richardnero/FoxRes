@@ -36,30 +36,39 @@ jobs:
             target/release/foxres
             target/release/foxres-cli
 
+  # Each snap is built natively on its own architecture.
   snap:
     needs: check
-    runs-on: ubuntu-24.04
-    outputs:
-      file: ${{ steps.build.outputs.snap }}
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v5
       - uses: snapcore/action-build@v1
         id: build
       - uses: actions/upload-artifact@v4
         with:
-          name: foxres-snap
+          name: foxres-snap-${{ matrix.arch }}
           path: ${{ steps.build.outputs.snap }}
 
-  # Push a tag such as v0.1.0 to publish to the Snap Store (stable channel).
-  # Needs the SNAPCRAFT_STORE_CREDENTIALS repository secret.
+  # Push a tag such as v0.2.1 to publish both architectures to the Snap Store
+  # (stable channel). Needs the SNAPCRAFT_STORE_CREDENTIALS repository secret.
   publish:
     needs: snap
     if: startsWith(github.ref, 'refs/tags/v')
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: foxres-snap
+          name: foxres-snap-${{ matrix.arch }}
       - id: find
         run: echo "snap=$(ls *.snap | head -n1)" >> "$GITHUB_OUTPUT"
       - uses: snapcore/action-publish@v1
