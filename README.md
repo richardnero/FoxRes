@@ -81,8 +81,10 @@ powers of ten or parsed with the exponent attached, so `10m` is exactly the `f64
 
 ## Install
 
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/foxres)
+
 ```sh
-sudo snap install foxres   # once published to the Snap Store
+sudo snap install foxres
 ```
 
 ## Build from source
