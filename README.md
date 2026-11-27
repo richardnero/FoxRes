@@ -82,7 +82,7 @@ powers of ten or parsed with the exponent attached, so `10m` is exactly the `f64
 ## Install
 
 ```sh
-sudo snap install foxres
+sudo snap install foxres   # once published to the Snap Store
 ```
 
 ## Build from source
