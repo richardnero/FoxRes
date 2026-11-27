@@ -4,7 +4,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, time::Duration};
 
 use foxres_core::{Color, ESeries, bands::BandCount};
 use relm4::{
-    ComponentParts, ComponentSender, SimpleComponent,
+    ComponentParts, ComponentSender, RelmWidgetExt, SimpleComponent,
     adw::{self, prelude::*},
     gtk::{self, glib, glib::prelude::ToValue},
 };
