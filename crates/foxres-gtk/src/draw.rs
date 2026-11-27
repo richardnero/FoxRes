@@ -97,3 +97,15 @@ pub fn resistor(cr: &Context, width: i32, height: i32, colors: &[Color]) {
     cr.set_line_width(1.0);
     let _ = cr.stroke();
 }
+
+/// A small round color sample for a band dropdown.
+pub fn swatch(cr: &Context, width: i32, height: i32, color: Color) {
+    let (w, h) = (f64::from(width), f64::from(height));
+    let r = w.min(h) / 2.0 - 1.0;
+    cr.arc(w / 2.0, h / 2.0, r, 0.0, std::f64::consts::TAU);
+    rgb(cr, color.rgb());
+    let _ = cr.fill_preserve();
+    cr.set_source_rgba(0.0, 0.0, 0.0, 0.3);
+    cr.set_line_width(1.0);
+    let _ = cr.stroke();
+}

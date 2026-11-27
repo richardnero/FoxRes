@@ -39,6 +39,7 @@ pub struct App {
     drawing: gtk::DrawingArea,
     bands_group: adw::PreferencesGroup,
     band_rows: Vec<adw::ComboRow>,
+    band_swatches: Vec<gtk::DrawingArea>,
     count: BandCount,
     colors: Rc<RefCell<Vec<Color>>>,
     screenshots: Option<PathBuf>,
@@ -343,6 +344,7 @@ impl SimpleComponent for App {
             drawing: gtk::DrawingArea::new(),
             bands_group: adw::PreferencesGroup::new(),
             band_rows: Vec::new(),
+            band_swatches: Vec::new(),
             count: BandCount::Four,
             colors: Rc::new(RefCell::new(initial)),
             screenshots: screenshot::dir(),
@@ -401,6 +403,9 @@ impl SimpleComponent for App {
                 if let Some(&c) = role.choices().get(idx as usize) {
                     if let Some(slot) = self.colors.borrow_mut().get_mut(pos) {
                         *slot = c;
+                    }
+                    if let Some(swatch) = self.band_swatches.get(pos) {
+                        swatch.queue_draw();
                     }
                     self.value_hint.clear();
                     self.refresh_bands();
@@ -555,6 +560,7 @@ impl App {
         for row in self.band_rows.drain(..) {
             self.bands_group.remove(&row);
         }
+        self.band_swatches.clear();
         let colors = self.colors.borrow().clone();
         for (pos, &role) in self.count.roles().iter().enumerate() {
             let choices = role.choices();
@@ -569,6 +575,21 @@ impl App {
                 .and_then(|c| choices.iter().position(|x| x == c))
                 .unwrap_or(0);
             row.set_selected(selected as u32);
+
+            let swatch = gtk::DrawingArea::builder()
+                .content_width(18)
+                .content_height(18)
+                .valign(gtk::Align::Center)
+                .build();
+            let shared = self.colors.clone();
+            swatch.set_draw_func(move |_, cr, w, h| {
+                if let Some(&c) = shared.borrow().get(pos) {
+                    draw::swatch(cr, w, h, c);
+                }
+            });
+            row.add_prefix(&swatch);
+            self.band_swatches.push(swatch);
+
             let sender = sender.clone();
             row.connect_selected_notify(move |r| sender.input(Msg::Band(pos, r.selected())));
             self.bands_group.add(&row);
