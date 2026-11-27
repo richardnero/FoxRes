@@ -6,13 +6,16 @@
   <name>FoxRes</name>
   <summary>Resistor color codes, SMD markings and standard values</summary>
   <description>
-    <p>FoxRes is a fast, accurate resistor calculator for electronics work.</p>
+    <p>FoxRes is a fast, exact resistor calculator for anyone who builds or repairs electronics.</p>
     <ul>
-      <li>Decode 3, 4, 5 and 6-band color codes, or type a value to get its bands</li>
+      <li>Decode 3, 4, 5 and 6-band color codes, or type a value such as 4k7 to get its bands</li>
       <li>Read and generate SMD markings: 3-digit, 4-digit, R notation and EIA-96</li>
-      <li>Find the nearest E3 to E192 standard value, with the error shown</li>
+      <li>Find the nearest E3 to E192 standard value, with the values either side</li>
       <li>Find the best series or parallel pair of standard values for any target</li>
+      <li>Use every calculation from the command line, with JSON output for scripts</li>
     </ul>
+    <p>Every color code and every SMD code is checked by exhaustive tests, and the E-series tables
+    are verified against IEC 60063.</p>
   </description>
   <launchable type="desktop-id">io.foxiq.FoxRes.desktop</launchable>
   <developer id="io.foxiq">
@@ -28,6 +31,40 @@
     <category>Utility</category>
     <category>Electronics</category>
   </categories>
+  <keywords>
+    <keyword>resistor</keyword>
+    <keyword>color code</keyword>
+    <keyword>SMD</keyword>
+    <keyword>EIA-96</keyword>
+    <keyword>E24</keyword>
+    <keyword>electronics</keyword>
+  </keywords>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Decode or generate resistor color bands</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/color-code.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>SMD markings, including EIA-96</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/smd.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Nearest standard value in any E-series</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/e-series.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Best two-resistor combinations</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/combine.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Dark mode</caption>
+      <image>https://raw.githubusercontent.com/richardnero/FoxRes/main/docs/screenshots/color-code-dark.png</image>
+    </screenshot>
+  </screenshots>
+  <supports>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </supports>
   <branding>
     <color type="primary" scheme_preference="light">#f6a05a</color>
     <color type="primary" scheme_preference="dark">#7a3a12</color>
@@ -36,7 +73,8 @@
   <releases>
     <release version="0.1.0" date="2026-11-26">
       <description>
-        <p>First release: color bands, SMD codes, E-series and two-resistor combinations.</p>
+        <p>First release: color bands, SMD codes, E-series values, two-resistor combinations and a
+        command-line interface.</p>
       </description>
     </release>
   </releases>

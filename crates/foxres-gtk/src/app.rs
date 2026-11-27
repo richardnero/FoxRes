@@ -457,7 +457,7 @@ impl SimpleComponent for App {
             Msg::Capture(i) => {
                 if let (Some(dir), Some(shot)) = (&self.screenshots, screenshot::SHOTS.get(i)) {
                     let path = dir.join(shot.file);
-                    self.window.set_focus(gtk::Widget::NONE);
+                    gtk::prelude::GtkWindowExt::set_focus(&self.window, gtk::Widget::NONE);
                     match screenshot::save(&self.window, &path) {
                         Ok(()) => eprintln!("saved {}", path.display()),
                         Err(e) => eprintln!("could not save {}: {e}", path.display()),
@@ -489,7 +489,7 @@ impl App {
         });
         self.stack.set_visible_child_name(shot.page);
         let sender = sender.clone();
-        self.window.set_focus(gtk::Widget::NONE);
+        gtk::prelude::GtkWindowExt::set_focus(&self.window, gtk::Widget::NONE);
         glib::timeout_add_local_once(Duration::from_millis(700), move || {
             sender.input(Msg::Capture(i));
         });
